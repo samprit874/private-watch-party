@@ -31,6 +31,15 @@ export class StorageService {
     const sanitized = filename.replace(/[^a-zA-Z0-9.-]/g, '_');
     const storageKey = `uploads/${roomId}/${uploadId}/${sanitized}`;
 
+    // 100% Free local server direct upload fallback when R2 credentials are not provided
+    if (!process.env.R2_ACCESS_KEY_ID || process.env.R2_ACCESS_KEY_ID === 'mock-access-key') {
+      return {
+        uploadUrl: `/api/upload/direct/${uploadId}?filename=${encodeURIComponent(sanitized)}`,
+        storageKey,
+        expiresInSeconds: 900,
+      };
+    }
+
     const command = new PutObjectCommand({
       Bucket: this.bucketName,
       Key: storageKey,

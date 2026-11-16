@@ -1,5 +1,8 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
+import fs from 'fs/promises';
+import { createWriteStream } from 'fs';
+import path from 'path';
 import { pool } from '../db/pool.js';
 import { StorageService } from '../services/storage.service.js';
 import { RoomService } from '../services/room.service.js';
@@ -115,6 +118,31 @@ export class UploadController {
       }
       console.error('Error finalizing upload:', err);
       return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
+    }
+  }
+
+  static async directUpload(req: Request, res: Response) {
+    try {
+      const { uploadId } = req.params;
+      const filename = (req.query.filename as string) || 'video.mp4';
+      const uploadDir = path.join('/tmp', 'watchparty', 'uploads', uploadId);
+      await fs.mkdir(uploadDir, { recursive: true });
+      const filePath = path.join(uploadDir, filename);
+
+      const writeStream = createWriteStream(filePath);
+      req.pipe(writeStream);
+
+      writeStream.on('finish', () => {
+        res.status(200).json({ status: 'uploaded', path: filePath });
+      });
+
+      writeStream.on('error', (err) => {
+        console.error('Direct upload stream error:', err);
+        res.status(500).json({ error: 'FILE_WRITE_ERROR' });
+      });
+    } catch (err: any) {
+      console.error('Direct upload error:', err);
+      res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
     }
   }
 }
