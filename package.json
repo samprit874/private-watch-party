@@ -1,0 +1,18 @@
+{
+  "name": "private-watch-party",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run --workspaces build",
+    "test": "npm run --workspaces test",
+    "dev:server": "npm --workspace=@watchparty/server run dev",
+    "dev:web": "npm --workspace=@watchparty/web run dev"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}
