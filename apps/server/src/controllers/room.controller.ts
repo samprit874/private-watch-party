@@ -150,9 +150,9 @@ export class RoomController {
       }));
 
       return res.json({ participants });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching room participants:', err);
-      return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
+      return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR', message: err?.message || err });
     }
   }
 }
