@@ -133,12 +133,12 @@ export class RoomController {
     try {
       const { slug } = req.params;
       const result = await pool.query(
-        `SELECT p.id, p.user_id, p.role, p.is_connected, u.display_name, p.created_at
+        `SELECT p.id, p.user_id, p.role, p.is_connected, u.display_name, p.joined_at
          FROM participants p
          JOIN users u ON u.id = p.user_id
          JOIN rooms r ON r.id = p.room_id
          WHERE r.slug = $1
-         ORDER BY p.created_at ASC`,
+         ORDER BY p.joined_at ASC`,
         [slug]
       );
 
