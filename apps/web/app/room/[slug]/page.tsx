@@ -10,7 +10,6 @@ import {
   Check, 
   Lock, 
   Unlock, 
-  Tv, 
   Radio, 
   AlertCircle,
   Loader2,
@@ -47,7 +46,6 @@ export default function RoomPage() {
     hasAudio,
     screenTrack,
     audioTrack,
-    error: screenShareError,
     startScreenShare,
     stopScreenShare,
   } = useLiveKitRoom({
@@ -176,26 +174,11 @@ export default function RoomPage() {
               </>
             )}
           </button>
-
-          <button
-            onClick={() => router.push(`/tv/${slug}`)}
-            title="Open TV Receiver Mode"
-            className="w-8 h-8 rounded-lg bg-cinema-850 hover:bg-cinema-800 border border-cinema-700/60 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
-          >
-            <Tv className="w-4 h-4" />
-          </button>
         </div>
       </header>
 
       {/* Main Cinema Theater */}
       <div className="flex-1 flex flex-col p-4 md:p-6 max-w-7xl mx-auto w-full gap-4">
-        {screenShareError && (
-          <div className="bg-amber-500/10 border border-amber-500/30 text-amber-300 px-4 py-3 rounded-xl text-xs flex items-center gap-2.5">
-            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
-            <span>{screenShareError}</span>
-          </div>
-        )}
-
         {/* Video Canvas Stage: Switches between Engine A (Screen Share) and Engine B (Direct Video) */}
         <div className="flex-1 bg-black rounded-2xl border border-cinema-850 flex flex-col items-center justify-center relative overflow-hidden shadow-2xl min-h-[460px]">
           {isSharing || screenTrack ? (
