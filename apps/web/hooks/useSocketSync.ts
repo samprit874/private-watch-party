@@ -9,6 +9,7 @@ import {
   PlaybackState,
   DriftCorrection
 } from '@watchparty/shared';
+import { getSocketUrl } from '../lib/api';
 
 interface UseSocketSyncOptions {
   roomId?: string;
@@ -33,7 +34,7 @@ export function useSocketSync({ roomId, isHost, videoRef }: UseSocketSyncOptions
 
   // 1. Initialize Socket.IO connection
   useEffect(() => {
-    const serverUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    const serverUrl = getSocketUrl();
     const socket = io(serverUrl, {
       withCredentials: true,
       transports: ['websocket', 'polling'],

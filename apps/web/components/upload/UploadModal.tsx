@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { UploadCloud, X, CheckCircle, AlertCircle, Loader2, Film } from 'lucide-react';
+import { getApiBaseUrl } from '../../lib/api';
 
 interface UploadModalProps {
   roomId: string;
@@ -40,7 +41,7 @@ export function UploadModal({ roomId, isOpen, onClose, onUploadComplete }: Uploa
     setStatusText('Requesting upload session...');
 
     try {
-      const serverUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const serverUrl = getApiBaseUrl();
 
       // 1. Initiate upload
       const initRes = await fetch(`${serverUrl}/api/upload/init`, {

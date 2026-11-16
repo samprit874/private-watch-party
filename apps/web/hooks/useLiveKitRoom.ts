@@ -10,6 +10,7 @@ import {
   RemoteParticipant,
   LocalTrackPublication
 } from 'livekit-client';
+import { getApiBaseUrl } from '../lib/api';
 
 interface UseLiveKitRoomOptions {
   roomId?: string;
@@ -45,7 +46,7 @@ export function useLiveKitRoom({
 
     const connectToLiveKit = async () => {
       try {
-        const serverUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const serverUrl = getApiBaseUrl();
         const res = await fetch(`${serverUrl}/api/rooms/${roomId}/livekit-token`, {
           method: 'POST',
           credentials: 'include',

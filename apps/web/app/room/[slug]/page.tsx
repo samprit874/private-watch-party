@@ -19,6 +19,7 @@ import {
 import { VideoPlayer } from '../../../components/player/VideoPlayer';
 import { LiveKitScreenPlayer } from '../../../components/player/LiveKitScreenPlayer';
 import { useLiveKitRoom } from '../../../hooks/useLiveKitRoom';
+import { getApiBaseUrl } from '../../../lib/api';
 
 interface ParticipantInfo {
   id: string;
@@ -56,7 +57,7 @@ export default function RoomPage() {
   useEffect(() => {
     const fetchSession = async () => {
       try {
-        const serverUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const serverUrl = getApiBaseUrl();
         const res = await fetch(`${serverUrl}/api/rooms/session`, {
           credentials: 'include',
         });

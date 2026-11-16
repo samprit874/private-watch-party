@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Film, Users, Shield, Tv, Sparkles, ArrowRight, Loader2 } from 'lucide-react';
+import { getApiBaseUrl } from '../lib/api';
 
 export default function LandingPage() {
   const router = useRouter();
@@ -22,7 +23,7 @@ export default function LandingPage() {
     setError(null);
 
     try {
-      const serverUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const serverUrl = getApiBaseUrl();
       const res = await fetch(`${serverUrl}/api/rooms`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

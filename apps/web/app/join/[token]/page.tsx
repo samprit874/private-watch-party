@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Film, Users, Shield, Lock, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
+import { getApiBaseUrl } from '../../../lib/api';
 
 interface RoomDetails {
   id: string;
@@ -31,7 +32,7 @@ export default function JoinPage() {
 
     const fetchRoom = async () => {
       try {
-        const serverUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const serverUrl = getApiBaseUrl();
         const res = await fetch(`${serverUrl}/api/rooms/invite/${token}`);
         if (!res.ok) {
           if (res.status === 404) throw new Error('This invitation link is invalid or has expired.');
@@ -60,7 +61,7 @@ export default function JoinPage() {
     setError(null);
 
     try {
-      const serverUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const serverUrl = getApiBaseUrl();
       const res = await fetch(`${serverUrl}/api/rooms/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -20,10 +20,11 @@ export class RoomController {
       const result = await RoomService.createRoom(parsed);
 
       // Set HttpOnly secure session cookie
+      const isProd = process.env.NODE_ENV === 'production';
       res.cookie(SESSION_COOKIE_NAME, result.sessionToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        secure: isProd,
+        sameSite: isProd ? 'none' : 'lax',
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
       });
 
@@ -66,10 +67,11 @@ export class RoomController {
       const parsed = JoinRoomSchema.parse(req.body);
       const result = await RoomService.joinRoom(parsed);
 
+      const isProd = process.env.NODE_ENV === 'production';
       res.cookie(SESSION_COOKIE_NAME, result.sessionToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        secure: isProd,
+        sameSite: isProd ? 'none' : 'lax',
         maxAge: 24 * 60 * 60 * 1000,
       });
 

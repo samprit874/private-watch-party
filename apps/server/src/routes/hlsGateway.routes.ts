@@ -45,10 +45,11 @@ hlsGatewayRouter.get('/:uploadId/token', async (req: Request, res: Response) => 
     );
 
     // Set cookie for Native Safari AVFoundation
+    const isProd = process.env.NODE_ENV === 'production';
     res.cookie('__Host-Media-Token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
       path: '/hls/',
       maxAge: 20 * 60 * 1000,
     });

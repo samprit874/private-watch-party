@@ -18,6 +18,7 @@ import {
 import { useSocketSync } from '../../hooks/useSocketSync';
 import { DriftIndicator } from './DriftIndicator';
 import { UploadModal } from '../upload/UploadModal';
+import { getApiBaseUrl } from '../../lib/api';
 
 interface VideoPlayerProps {
   roomId?: string;
@@ -183,7 +184,7 @@ export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
     setUrlError(null);
 
     try {
-      const serverUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const serverUrl = getApiBaseUrl();
       const res = await fetch(`${serverUrl}/api/media/validate-url`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
