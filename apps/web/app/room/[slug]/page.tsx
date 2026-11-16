@@ -14,7 +14,7 @@ import {
   AlertCircle,
   Loader2,
   Monitor,
-  StopCircle 
+  StopCircle
 } from 'lucide-react';
 import { VideoPlayer } from '../../../components/player/VideoPlayer';
 import { LiveKitScreenPlayer } from '../../../components/player/LiveKitScreenPlayer';
@@ -93,7 +93,7 @@ export default function RoomPage() {
   const copyInviteLink = () => {
     if (!rawInviteToken && !session) return;
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const inviteUrl = rawInviteToken 
+    const inviteUrl = rawInviteToken
       ? `${origin}/join/${rawInviteToken}`
       : `${origin}/join/${session?.room_id}`; // fallback
 
@@ -138,11 +138,10 @@ export default function RoomPage() {
           {isHost && (
             <button
               onClick={isSharing ? stopScreenShare : startScreenShare}
-              className={`flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shadow-sm ${
-                isSharing 
-                  ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/20' 
-                  : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20'
-              }`}
+              className={`flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shadow-sm ${isSharing
+                ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/20'
+                : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20'
+                }`}
             >
               {isSharing ? (
                 <>
@@ -191,9 +190,9 @@ export default function RoomPage() {
               onStopSharing={stopScreenShare}
             />
           ) : (
-            <VideoPlayer 
-              roomId={session?.room_id} 
-              isHost={isHost} 
+            <VideoPlayer
+              roomId={session?.room_id}
+              isHost={isHost}
             />
           )}
         </div>
