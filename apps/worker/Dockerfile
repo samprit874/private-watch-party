@@ -18,9 +18,9 @@ ENV NODE_ENV=production
 
 COPY package*.json ./
 COPY packages/shared/package.json ./packages/shared/
-COPY packages/shared/dist ./packages/shared/dist
+COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY apps/worker/package.json ./apps/worker/
-COPY apps/worker/dist ./apps/worker/dist
+COPY --from=builder /app/apps/worker/dist ./apps/worker/dist
 
 RUN npm ci --omit=dev
 

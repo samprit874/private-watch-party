@@ -2,18 +2,18 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import Hls from 'hls.js';
-import { 
-  Play, 
-  Pause, 
-  Volume2, 
-  VolumeX, 
-  Maximize, 
-  Minimize, 
-  Link as LinkIcon, 
-  Settings, 
+import {
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  Maximize,
+  Minimize,
+  Link as LinkIcon,
+  Settings,
   Loader2,
   Film,
-  UploadCloud 
+  UploadCloud
 } from 'lucide-react';
 import { useSocketSync } from '../../hooks/useSocketSync';
 import { DriftIndicator } from './DriftIndicator';
@@ -108,7 +108,7 @@ export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
     if (!video) return;
 
     if (video.paused) {
-      video.play().catch(() => {});
+      video.play().catch(() => { });
       setIsPlaying(true);
       if (isHost) {
         sendPlay(video.currentTime);
@@ -167,10 +167,10 @@ export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
     if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen().catch(() => {});
+      containerRef.current.requestFullscreen().catch(() => { });
       setIsFullscreen(true);
     } else {
-      document.exitFullscreen().catch(() => {});
+      document.exitFullscreen().catch(() => { });
       setIsFullscreen(false);
     }
   };
@@ -214,7 +214,7 @@ export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
   };
 
   return (
-    <div 
+    <div
       ref={containerRef}
       className="relative w-full h-full bg-black rounded-2xl overflow-hidden flex flex-col justify-center items-center group select-none"
     >
@@ -259,10 +259,10 @@ export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
 
       {/* Top Right: Live Drift Telemetry */}
       <div className="absolute top-4 right-4 z-20">
-        <DriftIndicator 
-          driftInfo={driftInfo} 
-          baseRate={baseRate} 
-          isConnected={isConnected} 
+        <DriftIndicator
+          driftInfo={driftInfo}
+          baseRate={baseRate}
+          isConnected={isConnected}
         />
       </div>
 
@@ -323,11 +323,10 @@ export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
                   key={rate}
                   onClick={() => handleRateChange(rate)}
                   disabled={!isHost}
-                  className={`px-2 py-0.5 rounded transition-colors ${
-                    baseRate === rate 
-                      ? 'bg-indigo-600 text-white font-bold' 
-                      : 'hover:bg-white/10 text-gray-400'
-                  }`}
+                  className={`px-2 py-0.5 rounded transition-colors ${baseRate === rate
+                    ? 'bg-indigo-600 text-white font-bold'
+                    : 'hover:bg-white/10 text-gray-400'
+                    }`}
                 >
                   {rate}x
                 </button>
