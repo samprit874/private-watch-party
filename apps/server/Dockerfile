@@ -10,6 +10,9 @@ RUN npm --workspace=@watchparty/shared run build
 RUN npm --workspace=@watchparty/server run build
 
 FROM node:20-alpine
+# Install FFmpeg and ffprobe for multi-rendition HLS transcoding
+RUN apk add --no-cache ffmpeg
+
 WORKDIR /app
 ENV NODE_ENV=production
 
