@@ -15,6 +15,7 @@ import {
   AlertCircle,
   Loader2 
 } from 'lucide-react';
+import { VideoPlayer } from '../../../components/player/VideoPlayer';
 
 interface ParticipantInfo {
   id: string;
@@ -147,20 +148,11 @@ export default function RoomPage() {
       {/* Main Cinema Theater */}
       <div className="flex-1 flex flex-col p-4 md:p-6 max-w-7xl mx-auto w-full gap-4">
         {/* Video Canvas Stage */}
-        <div className="flex-1 bg-black rounded-2xl border border-cinema-850 flex flex-col items-center justify-center relative overflow-hidden shadow-2xl min-h-[420px]">
-          <div className="text-center p-8 max-w-md">
-            <div className="w-16 h-16 rounded-2xl bg-cinema-900 border border-cinema-800 flex items-center justify-center mx-auto mb-4 text-indigo-400 shadow-xl">
-              <Film className="w-8 h-8" />
-            </div>
-            <h2 className="text-lg font-bold text-white mb-2">Stage 1 Infrastructure Active</h2>
-            <p className="text-xs text-gray-400 mb-6 leading-relaxed">
-              Virtual theater room created with strict 3-person seat allocation and guest session authorization. Ready for Engine B (Direct Video) in Stage 2.
-            </p>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cinema-900 border border-cinema-800 text-xs text-gray-300">
-              <Radio className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-              <span>Room ID: <code className="text-indigo-300 font-mono">{session?.room_id?.slice(0, 8) || slug}...</code></span>
-            </div>
-          </div>
+        <div className="flex-1 bg-black rounded-2xl border border-cinema-850 flex flex-col items-center justify-center relative overflow-hidden shadow-2xl min-h-[460px]">
+          <VideoPlayer 
+            roomId={session?.room_id} 
+            isHost={session?.role === 'host'} 
+          />
         </div>
 
         {/* 3-Seat Participant Bar */}

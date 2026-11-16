@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { roomRouter } from './routes/room.routes.js';
+import { mediaRouter } from './routes/media.routes.js';
 
 export const app = express();
 
@@ -18,5 +19,6 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() });
 });
 
-// Room routes
+// Routes
 app.use('/api/rooms', roomRouter);
+app.use('/api/media', mediaRouter);

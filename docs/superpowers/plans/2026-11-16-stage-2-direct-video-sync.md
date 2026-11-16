@@ -1,6 +1,6 @@
 # Stage 2: Direct Video Playback & Authoritative Sync Engine Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Implement Engine B (Direct Video URLs), Socket.IO authoritative playback synchronization (`PLAY`, `PAUSE`, `SEEK`, `RATE_CHANGE`), NTP-style clock offset calculation, multi-tier non-destructive speed slewing ($R_{base} \times M_{sync}$), anti-SSRF URL validation, and a custom Next.js video player with drift telemetry.
 
@@ -31,10 +31,10 @@
 - Consumes: RoomService.verifySession(), SESSION_COOKIE_NAME.
 - Produces: Authenticated socket instance with `socket.data = { userId, roomId, role, displayName }`.
 
-- [ ] **Step 1: Write failing test for socket authentication**
-- [ ] **Step 2: Implement socketServer.ts and auth.middleware.ts**
-- [ ] **Step 3: Run test and verify it passes**
-- [ ] **Step 4: Commit**
+- [x] **Step 1: Write failing test for socket authentication**
+- [x] **Step 2: Implement socketServer.ts and auth.middleware.ts**
+- [x] **Step 3: Run test and verify it passes**
+- [x] **Step 4: Commit**
 
 ---
 
@@ -48,10 +48,10 @@
 **Interfaces:**
 - Produces: `calculateNtpOffset()`, `computeExpectedPosition()`, `computeDriftCorrection()`.
 
-- [ ] **Step 1: Write failing test for NTP clock offset and drift slewing math**
-- [ ] **Step 2: Implement clock.ts in @watchparty/shared**
-- [ ] **Step 3: Run test and verify it passes**
-- [ ] **Step 4: Commit**
+- [x] **Step 1: Write failing test for NTP clock offset and drift slewing math**
+- [x] **Step 2: Implement clock.ts in @watchparty/shared**
+- [x] **Step 3: Run test and verify it passes**
+- [x] **Step 4: Commit**
 
 ---
 
@@ -66,10 +66,10 @@
 - Consumes: PostgreSQL playback_sessions table.
 - Produces: Authoritative event handling for `PLAY`, `PAUSE`, `SEEK`, `RATE_CHANGE`, `REQUEST_SYNC` with monotonic revision tracking.
 
-- [ ] **Step 1: Write failing test for authoritative playback state transitions**
-- [ ] **Step 2: Implement playback.service.ts and playback.handler.ts**
-- [ ] **Step 3: Run test and verify it passes**
-- [ ] **Step 4: Commit**
+- [x] **Step 1: Write failing test for authoritative playback state transitions**
+- [x] **Step 2: Implement playback.service.ts and playback.handler.ts**
+- [x] **Step 3: Run test and verify it passes**
+- [x] **Step 4: Commit**
 
 ---
 
@@ -83,10 +83,10 @@
 **Interfaces:**
 - Produces: `validateDirectMediaUrl(url: string)`: blocks internal subnets, checks MIME types, verifies reachable public video.
 
-- [ ] **Step 1: Write failing test for SSRF validator**
-- [ ] **Step 2: Implement ssrfValidator.ts**
-- [ ] **Step 3: Run test and verify it passes**
-- [ ] **Step 4: Commit**
+- [x] **Step 1: Write failing test for SSRF validator**
+- [x] **Step 2: Implement ssrfValidator.ts**
+- [x] **Step 3: Run test and verify it passes**
+- [x] **Step 4: Commit**
 
 ---
 
@@ -102,7 +102,7 @@
 - Consumes: Socket.IO client, `@watchparty/shared` clock math.
 - Produces: Synced HTML5 / HLS.js video player with live drift telemetry badge.
 
-- [ ] **Step 1: Implement useSocketSync hook with slewing and hard seek logic**
-- [ ] **Step 2: Implement VideoPlayer with custom scrub bar and play/pause controls**
-- [ ] **Step 3: Integrate VideoPlayer into Room page**
-- [ ] **Step 4: Verify Next.js build and commit**
+- [x] **Step 1: Implement useSocketSync hook with slewing and hard seek logic**
+- [x] **Step 2: Implement VideoPlayer with custom scrub bar and play/pause controls**
+- [x] **Step 3: Integrate VideoPlayer into Room page**
+- [x] **Step 4: Verify Next.js build and commit**
