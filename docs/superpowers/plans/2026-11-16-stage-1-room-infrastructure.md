@@ -1,6 +1,6 @@
 # Stage 1: Room Infrastructure & Guest Auth Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Establish the foundational monorepo workspace, containerized PostgreSQL environment, schema migrations with triggers, guest session authentication, and concurrency-safe room creation/joining API strictly enforcing the 3-participant limit.
 
@@ -38,7 +38,7 @@
 **Interfaces:**
 - Produces: Monorepo workspace configuration (`apps/*`, `packages/*`), shared constants (`MAX_PARTICIPANTS = 3`), shared TypeScript interfaces (`User`, `Room`, `Participant`).
 
-- [ ] **Step 1: Write root workspace configuration and tsconfig**
+- [x] **Step 1: Write root workspace configuration and tsconfig**
 
 ```json
 // package.json
@@ -62,7 +62,7 @@
 }
 ```
 
-- [ ] **Step 2: Create root tsconfig.json and .gitignore**
+- [x] **Step 2: Create root tsconfig.json and .gitignore**
 
 ```json
 // tsconfig.json
@@ -82,7 +82,7 @@
 }
 ```
 
-- [ ] **Step 3: Define packages/shared with core domain types and constants**
+- [x] **Step 3: Define packages/shared with core domain types and constants**
 
 ```typescript
 // packages/shared/src/constants.ts
@@ -130,7 +130,7 @@ export interface Participant {
 }
 ```
 
-- [ ] **Step 4: Create docker-compose.yml for local PostgreSQL**
+- [x] **Step 4: Create docker-compose.yml for local PostgreSQL**
 
 ```yaml
 # docker-compose.yml
@@ -154,7 +154,7 @@ volumes:
   pgdata:
 ```
 
-- [ ] **Step 5: Verify workspace build and commit**
+- [x] **Step 5: Verify workspace build and commit**
 
 ```bash
 git add package.json tsconfig.json docker-compose.yml .gitignore .env.example packages/shared
@@ -177,7 +177,7 @@ git commit -m "chore: scaffold monorepo workspace and shared package"
 - Consumes: PostgreSQL connection string from environment.
 - Produces: Initialized PostgreSQL database with 8 tables and `enforce_room_capacity()` row-locking trigger.
 
-- [ ] **Step 1: Write migration SQL script with triggers and constraints**
+- [x] **Step 1: Write migration SQL script with triggers and constraints**
 
 ```sql
 -- apps/server/src/db/migrations/001_initial_schema.sql
@@ -308,7 +308,7 @@ BEFORE INSERT OR UPDATE OF is_connected ON participants
 FOR EACH ROW EXECUTE FUNCTION enforce_room_capacity();
 ```
 
-- [ ] **Step 2: Write failing unit test verifying schema & capacity trigger**
+- [x] **Step 2: Write failing unit test verifying schema & capacity trigger**
 
 ```typescript
 // apps/server/tests/db/schema.test.ts
@@ -355,9 +355,9 @@ describe('Database Schema & Triggers', () => {
 });
 ```
 
-- [ ] **Step 3: Implement pool.ts and migration runner**
-- [ ] **Step 4: Run test and verify it passes**
-- [ ] **Step 5: Commit**
+- [x] **Step 3: Implement pool.ts and migration runner**
+- [x] **Step 4: Run test and verify it passes**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/server
@@ -375,7 +375,7 @@ git commit -m "feat(server): add database schema and concurrency-safe capacity t
 **Interfaces:**
 - Produces: `generateRandomToken()`, `hashToken(token: string): string`, `createGuestSession()`.
 
-- [ ] **Step 1: Write failing test for crypto utilities**
+- [x] **Step 1: Write failing test for crypto utilities**
 
 ```typescript
 // apps/server/tests/utils/crypto.test.ts
@@ -399,7 +399,7 @@ describe('Crypto Utilities', () => {
 });
 ```
 
-- [ ] **Step 2: Implement crypto utilities**
+- [x] **Step 2: Implement crypto utilities**
 
 ```typescript
 // apps/server/src/utils/crypto.ts
@@ -414,8 +414,8 @@ export function hashToken(token: string): string {
 }
 ```
 
-- [ ] **Step 3: Run test and verify it passes**
-- [ ] **Step 4: Commit**
+- [x] **Step 3: Run test and verify it passes**
+- [x] **Step 4: Commit**
 
 ```bash
 git add apps/server/src/utils apps/server/tests/utils
@@ -439,7 +439,7 @@ git commit -m "feat(server): add cryptographic token generation and SHA-256 hash
   - `GET /api/rooms/invite/:token` (Validates invite token hash, checks room status and participant count).
   - `POST /api/rooms/join` (Adds guest viewer, enforces 3-person limit atomically).
 
-- [ ] **Step 1: Write failing test for room creation and joining**
+- [x] **Step 1: Write failing test for room creation and joining**
 
 ```typescript
 // apps/server/tests/routes/room.test.ts
@@ -461,10 +461,10 @@ describe('Room API', () => {
 });
 ```
 
-- [ ] **Step 2: Implement room.service.ts with explicit transaction**
-- [ ] **Step 3: Implement room.controller.ts and room.routes.ts**
-- [ ] **Step 4: Run test and verify it passes**
-- [ ] **Step 5: Commit**
+- [x] **Step 2: Implement room.service.ts with explicit transaction**
+- [x] **Step 3: Implement room.controller.ts and room.routes.ts**
+- [x] **Step 4: Run test and verify it passes**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/server/src apps/server/tests
@@ -489,11 +489,11 @@ git commit -m "feat(server): add room creation, invite resolution, and atomic jo
 - Consumes: Shared types from `@watchparty/shared`, Server REST APIs.
 - Produces: Responsive UI with instant "Create Room", invite link copy, and participant capacity warning overlay.
 
-- [ ] **Step 1: Initialize Next.js app with Tailwind CSS**
-- [ ] **Step 2: Create Landing Page with "Create Room" modal and display name input**
-- [ ] **Step 3: Create Join Page verifying invite token and prompting viewer display name**
-- [ ] **Step 4: Create Cinema Room shell layout with 3-seat participant bar and player placeholder**
-- [ ] **Step 5: Verify build (`npm --workspace=@watchparty/web run build`) and commit**
+- [x] **Step 1: Initialize Next.js app with Tailwind CSS**
+- [x] **Step 2: Create Landing Page with "Create Room" modal and display name input**
+- [x] **Step 3: Create Join Page verifying invite token and prompting viewer display name**
+- [x] **Step 4: Create Cinema Room shell layout with 3-seat participant bar and player placeholder**
+- [x] **Step 5: Verify build (`npm --workspace=@watchparty/web run build`) and commit**
 
 ```bash
 git add apps/web
