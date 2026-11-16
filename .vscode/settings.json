@@ -1,0 +1,5 @@
+{
+  "files.autoSave": "off",
+  "workbench.editor.closeOnFileDelete": true,
+  "typescript.tsdk": "node_modules/typescript/lib"
+}

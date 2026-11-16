@@ -1,0 +1,58 @@
+services:
+  # 1. Next.js 14 Web Frontend
+  - type: web
+    name: watchparty-web
+    env: node
+    plan: free
+    buildCommand: npm ci && npm --workspace=@watchparty/shared run build && npm --workspace=@watchparty/web run build
+    startCommand: npm --workspace=@watchparty/web run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: watchparty-server
+          property: host
+
+  # 2. Node.js / Express API & Socket.IO Engine
+  - type: web
+    name: watchparty-server
+    env: docker
+    dockerfilePath: apps/server/Dockerfile
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: watchparty-db
+          property: connectionString
+      - key: CLIENT_URL
+        fromService:
+          type: web
+          name: watchparty-web
+          property: host
+
+  # 3. FFmpeg Background Video Worker
+  - type: worker
+    name: watchparty-worker
+    env: docker
+    dockerfilePath: apps/worker/Dockerfile
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: watchparty-db
+          property: connectionString
+
+databases:
+  # Cloud Managed PostgreSQL 16
+  - name: watchparty-db
+    databaseName: watchparty
+    user: postgres
+    plan: free
