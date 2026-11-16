@@ -118,8 +118,8 @@ export function UploadModal({ roomId, isOpen, onClose, onUploadComplete }: Uploa
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-cinema-900 border border-cinema-750 rounded-2xl p-6 max-w-lg w-full shadow-2xl relative">
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+      <div className="bg-[#111827] border border-white/[0.1] rounded-2xl p-6 max-w-lg w-full shadow-2xl relative">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-400 hover:text-white"
@@ -133,7 +133,7 @@ export function UploadModal({ roomId, isOpen, onClose, onUploadComplete }: Uploa
           </div>
           <div>
             <h3 className="text-base font-bold text-white">Upload Personal Video</h3>
-            <p className="text-xs text-gray-400">Engine C: Converts MP4/WebM to adaptive HLS</p>
+            <p className="text-xs text-gray-400">Direct streaming to all 3 seats</p>
           </div>
         </div>
 

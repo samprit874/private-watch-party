@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
+import { pool } from '../db/pool.js';
 import { RoomService } from '../services/room.service.js';
 import { extractSessionToken } from '../utils/auth.js';
 import { SESSION_COOKIE_NAME } from '@watchparty/shared';
@@ -124,6 +125,33 @@ export class RoomController {
       return res.json(session);
     } catch (err) {
       console.error('Error verifying session:', err);
+      return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
+    }
+  }
+
+  static async getParticipants(req: Request, res: Response) {
+    try {
+      const { slug } = req.params;
+      const result = await pool.query(
+        `SELECT p.id, p.user_id, p.role, p.is_connected, u.display_name, p.created_at
+         FROM participants p
+         JOIN users u ON u.id = p.user_id
+         JOIN rooms r ON r.id = p.room_id
+         WHERE r.slug = $1
+         ORDER BY p.created_at ASC`,
+        [slug]
+      );
+
+      const participants = result.rows.map((row) => ({
+        id: row.user_id,
+        displayName: row.display_name,
+        role: row.role,
+        isConnected: row.is_connected,
+      }));
+
+      return res.json({ participants });
+    } catch (err) {
+      console.error('Error fetching room participants:', err);
       return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
     }
   }

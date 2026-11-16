@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Film, Users, Shield, Lock, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
+import { Film, Users, Shield, Lock, AlertCircle, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 import { getApiBaseUrl, saveSessionToken } from '../../../lib/api';
 
 interface RoomDetails {
@@ -95,19 +95,19 @@ export default function JoinPage() {
   };
 
   return (
-    <main className="min-h-screen bg-cinema-950 flex flex-col justify-center items-center px-6 py-12">
-      <div className="w-full max-w-md bg-cinema-900 border border-cinema-800 rounded-2xl p-8 shadow-2xl shadow-black/60">
+    <main className="min-h-screen bg-[#0B0F19] flex flex-col justify-center items-center px-4 py-8">
+      <div className="w-full max-w-md bg-[#111827]/80 border border-white/[0.1] rounded-3xl p-6 sm:p-8 backdrop-blur-2xl shadow-2xl shadow-black/80">
         {/* Header Icon */}
-        <div className="flex justify-center mb-6">
-          <div className="w-14 h-14 rounded-2xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-            <Film className="w-7 h-7" />
+        <div className="flex justify-center mb-5">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+            <Film className="w-7 h-7 text-white" />
           </div>
         </div>
 
         {isFetching ? (
           <div className="py-12 flex flex-col items-center justify-center gap-3 text-gray-400">
             <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
-            <p className="text-sm">Verifying invitation...</p>
+            <p className="text-sm font-medium">Checking invitation...</p>
           </div>
         ) : error && !room ? (
           <div className="text-center py-6">
@@ -115,12 +115,12 @@ export default function JoinPage() {
               <AlertCircle className="w-6 h-6" />
             </div>
             <h2 className="text-lg font-bold text-white mb-2">Invitation Unavailable</h2>
-            <p className="text-sm text-gray-400 mb-6">{error}</p>
+            <p className="text-xs text-gray-400 mb-6">{error}</p>
             <button
               onClick={() => router.push('/')}
-              className="bg-cinema-800 hover:bg-cinema-700 text-white text-sm font-medium py-2.5 px-5 rounded-xl transition-colors"
+              className="bg-white/[0.08] hover:bg-white/[0.12] text-white text-xs font-semibold py-2.5 px-5 rounded-xl transition-colors"
             >
-              Return to Home
+              Return Home
             </button>
           </div>
         ) : room?.isLocked ? (
@@ -128,13 +128,13 @@ export default function JoinPage() {
             <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto mb-4">
               <Lock className="w-6 h-6" />
             </div>
-            <h2 className="text-lg font-bold text-white mb-2">Room Locked</h2>
-            <p className="text-sm text-gray-400 mb-6">The host has temporarily locked this room to new participants.</p>
+            <h2 className="text-lg font-bold text-white mb-2">Cinema Locked</h2>
+            <p className="text-xs text-gray-400 mb-6">The host has temporarily locked this room to new guests.</p>
             <button
               onClick={() => router.push('/')}
-              className="bg-cinema-800 hover:bg-cinema-700 text-white text-sm font-medium py-2.5 px-5 rounded-xl transition-colors"
+              className="bg-white/[0.08] hover:bg-white/[0.12] text-white text-xs font-semibold py-2.5 px-5 rounded-xl transition-colors"
             >
-              Return to Home
+              Return Home
             </button>
           </div>
         ) : room?.isFull ? (
@@ -143,34 +143,37 @@ export default function JoinPage() {
               <Users className="w-6 h-6" />
             </div>
             <h2 className="text-lg font-bold text-white mb-2">Cinema Full</h2>
-            <p className="text-sm text-gray-400 mb-6">This private room has already reached its strict 3-participant limit.</p>
+            <p className="text-xs text-gray-400 mb-6">This private room has reached the strict 3-seat limit.</p>
             <button
               onClick={() => router.push('/')}
-              className="bg-cinema-800 hover:bg-cinema-700 text-white text-sm font-medium py-2.5 px-5 rounded-xl transition-colors"
+              className="bg-white/[0.08] hover:bg-white/[0.12] text-white text-xs font-semibold py-2.5 px-5 rounded-xl transition-colors"
             >
-              Return to Home
+              Return Home
             </button>
           </div>
         ) : (
           <div>
             <div className="text-center mb-6">
-              <h2 className="text-xl font-bold text-white mb-1">{room?.title}</h2>
-              <div className="inline-flex items-center gap-1.5 text-xs text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-full mt-2">
-                <Users className="w-3.5 h-3.5" />
-                <span>{room?.activeParticipantsCount} of 3 Seats Filled</span>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-medium mb-2">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>You're Invited!</span>
               </div>
+              <h2 className="text-xl font-extrabold text-white tracking-tight">{room?.title || 'Private Cinema'}</h2>
+              <p className="text-xs text-gray-400 mt-1">
+                {room?.activeParticipantsCount || 1} of 3 Seats Claimed
+              </p>
             </div>
 
             {error && (
-              <div className="mb-6 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+              <div className="mb-5 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium">
                 {error}
               </div>
             )}
 
             <form onSubmit={handleJoin} className="space-y-4">
               <div>
-                <label htmlFor="joinName" className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
-                  Enter Your Name
+                <label htmlFor="joinName" className="block text-xs font-semibold text-gray-300 mb-1.5">
+                  Your Display Name *
                 </label>
                 <input
                   id="joinName"
@@ -179,24 +182,24 @@ export default function JoinPage() {
                   maxLength={64}
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="e.g. Sam"
-                  className="w-full bg-cinema-950 border border-cinema-700/60 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                  placeholder="e.g. Alex"
+                  className="w-full bg-[#0B0F19] border border-white/[0.12] rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={isJoining}
-                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 px-6 rounded-xl shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                className="w-full mt-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold py-3.5 px-6 rounded-xl shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
               >
                 {isJoining ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Entering Cinema...</span>
+                    <span className="text-sm">Joining Cinema...</span>
                   </>
                 ) : (
                   <>
-                    <span>Take a Seat</span>
+                    <span className="text-sm">Join Cinema Theater</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}

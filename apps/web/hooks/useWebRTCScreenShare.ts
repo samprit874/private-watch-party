@@ -14,6 +14,7 @@ export interface ParticipantInfo {
 
 interface UseWebRTCScreenShareOptions {
   roomId?: string;
+  slug?: string;
   isHost: boolean;
 }
 
@@ -25,7 +26,7 @@ const RTC_CONFIG: RTCConfiguration = {
   ],
 };
 
-export function useWebRTCScreenShare({ roomId, isHost }: UseWebRTCScreenShareOptions) {
+export function useWebRTCScreenShare({ roomId, slug, isHost }: UseWebRTCScreenShareOptions) {
   const socketRef = useRef<Socket | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
@@ -39,12 +40,27 @@ export function useWebRTCScreenShare({ roomId, isHost }: UseWebRTCScreenShareOpt
   const [participants, setParticipants] = useState<ParticipantInfo[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  // Periodic and on-demand REST participant sync fallback
+  const refreshParticipants = useCallback(async () => {
+    if (!slug) return;
+    try {
+      const serverUrl = getSocketUrl();
+      const res = await fetch(`${serverUrl}/api/rooms/${slug}/participants`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.participants) && data.participants.length > 0) {
+          setParticipants(data.participants);
+        }
+      }
+    } catch {}
+  }, [slug]);
+
   // Initialize Socket.IO connection for WebRTC signaling and presence
   useEffect(() => {
     if (!roomId) return;
 
     const serverUrl = getSocketUrl();
-    const token = getSessionToken();
+    const token = getSessionToken(slug) || getSessionToken();
     const socket = io(serverUrl, {
       withCredentials: true,
       auth: { token },
@@ -56,6 +72,7 @@ export function useWebRTCScreenShare({ roomId, isHost }: UseWebRTCScreenShareOpt
 
     socket.on('connect', () => {
       setIsConnected(true);
+      refreshParticipants();
     });
 
     socket.on('disconnect', () => {
@@ -76,24 +93,33 @@ export function useWebRTCScreenShare({ roomId, isHost }: UseWebRTCScreenShareOpt
     });
 
     socket.on('PARTICIPANT_JOINED', (p: any) => {
+      const pId = p.id || p.userId;
       setParticipants((prev) => {
-        const existing = prev.find((item) => (item.id === p.userId || item.socketId === p.socketId));
-        if (existing) {
-          return prev.map((item) =>
-            item.id === p.userId ? { ...item, socketId: p.socketId, isConnected: true } : item
-          );
+        const existingIndex = prev.findIndex((item) => item.id === pId);
+        if (existingIndex >= 0) {
+          const updated = [...prev];
+          updated[existingIndex] = {
+            ...updated[existingIndex],
+            displayName: p.displayName || updated[existingIndex].displayName,
+            role: p.role || updated[existingIndex].role,
+            socketId: p.socketId,
+            isConnected: true,
+          };
+          return updated;
         }
         return [
           ...prev,
           {
-            id: p.userId,
-            displayName: p.displayName,
-            role: p.role,
+            id: pId,
+            displayName: p.displayName || 'Guest',
+            role: p.role || 'viewer',
             socketId: p.socketId,
             isConnected: true,
           },
         ];
       });
+
+      refreshParticipants();
 
       // If host is actively sharing and a new viewer joins, initiate WebRTC offer to them
       if (isHost && localStreamRef.current && p.socketId) {
@@ -102,6 +128,7 @@ export function useWebRTCScreenShare({ roomId, isHost }: UseWebRTCScreenShareOpt
     });
 
     socket.on('PARTICIPANT_LEFT', (p: any) => {
+      const pId = p.id || p.userId;
       if (p.socketId) {
         const pc = peerConnectionsRef.current.get(p.socketId);
         if (pc) {
@@ -109,7 +136,8 @@ export function useWebRTCScreenShare({ roomId, isHost }: UseWebRTCScreenShareOpt
           peerConnectionsRef.current.delete(p.socketId);
         }
       }
-      setParticipants((prev) => prev.filter((item) => item.id !== p.userId && item.socketId !== p.socketId));
+      setParticipants((prev) => prev.filter((item) => item.id !== pId));
+      refreshParticipants();
     });
 
     // 2. Screen Share Session State
@@ -183,12 +211,17 @@ export function useWebRTCScreenShare({ roomId, isHost }: UseWebRTCScreenShareOpt
       }
     });
 
+    const pollInterval = setInterval(() => {
+      refreshParticipants();
+    }, 3500);
+
     return () => {
+      clearInterval(pollInterval);
       socket.disconnect();
       peerConnectionsRef.current.forEach((pc) => pc.close());
       peerConnectionsRef.current.clear();
     };
-  }, [roomId, isHost]);
+  }, [roomId, slug, isHost, refreshParticipants]);
 
   // Helper: Host initiates WebRTC Offer to a peer
   const initiateOfferToPeer = async (socket: Socket, targetSocketId: string, stream: MediaStream) => {

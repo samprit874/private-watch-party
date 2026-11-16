@@ -1,24 +1,25 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
   Film,
   Users,
-  Shield,
   Copy,
   Check,
-  Lock,
-  Unlock,
-  Radio,
-  AlertCircle,
-  Loader2,
+  Share2,
   Monitor,
-  StopCircle
+  StopCircle,
+  Crown,
+  UserCheck,
+  UserPlus,
+  Loader2,
+  Radio,
+  Sparkles
 } from 'lucide-react';
 import { VideoPlayer } from '../../../components/player/VideoPlayer';
 import { WebRTCScreenPlayer } from '../../../components/player/WebRTCScreenPlayer';
-import { useWebRTCScreenShare, ParticipantInfo } from '../../../hooks/useWebRTCScreenShare';
+import { useWebRTCScreenShare } from '../../../hooks/useWebRTCScreenShare';
 import { getApiBaseUrl, getAuthHeaders } from '../../../lib/api';
 
 export default function RoomPage() {
@@ -29,26 +30,29 @@ export default function RoomPage() {
   const rawInviteToken = searchParams?.get('invite');
 
   const [session, setSession] = useState<any>(null);
+  const [dbParticipants, setDbParticipants] = useState<any[]>([]);
   const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [participants, setParticipants] = useState<ParticipantInfo[]>([]);
 
   const isHost = session?.role === 'host' || session?.role === 'co-host';
 
+  // 1. WebRTC Screen Share Hook & Live Socket Presence
   const {
     isSharing,
     isRemoteSharing,
     hasAudio,
     localStream,
     remoteStream,
-    participants: liveParticipants,
+    participants: liveSocketParticipants,
     startScreenShare,
     stopScreenShare,
   } = useWebRTCScreenShare({
     roomId: session?.room_id,
+    slug,
     isHost,
   });
 
+  // 2. Load Session Context
   useEffect(() => {
     const fetchSession = async () => {
       try {
@@ -60,7 +64,6 @@ export default function RoomPage() {
         });
 
         if (!res.ok) {
-          // If unauthenticated and no invite token, go to landing
           if (!rawInviteToken) {
             router.push('/');
             return;
@@ -68,15 +71,6 @@ export default function RoomPage() {
         } else {
           const data = await res.json();
           setSession(data);
-          // Set initial host / participant list
-          setParticipants([
-            {
-              id: data.user_id,
-              displayName: data.display_name,
-              role: data.role,
-              isConnected: true,
-            },
-          ]);
         }
       } catch (err) {
         console.error('Session load error:', err);
@@ -88,96 +82,192 @@ export default function RoomPage() {
     fetchSession();
   }, [slug, rawInviteToken, router]);
 
-  const copyInviteLink = () => {
-    if (!rawInviteToken && !session) return;
+  // 3. Database Participants Sync (Instant fallback)
+  const fetchParticipants = useCallback(async () => {
+    if (!slug) return;
+    try {
+      const serverUrl = getApiBaseUrl();
+      const res = await fetch(`${serverUrl}/api/rooms/${slug}/participants`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.participants)) {
+          setDbParticipants(data.participants);
+        }
+      }
+    } catch (err) {
+      // ignore transient network glitch
+    }
+  }, [slug]);
+
+  useEffect(() => {
+    fetchParticipants();
+    const interval = setInterval(fetchParticipants, 3000);
+    return () => clearInterval(interval);
+  }, [fetchParticipants]);
+
+  // 4. Unified Participant Deduplication
+  const allKnownParticipants = useMemo(() => {
+    const map = new Map<string, any>();
+
+    // Add session host
+    if (session) {
+      map.set(session.user_id, {
+        id: session.user_id,
+        displayName: session.display_name,
+        role: session.role || 'host',
+        isConnected: true,
+      });
+    }
+
+    // Add database participants
+    dbParticipants.forEach((p) => {
+      map.set(p.id, {
+        id: p.id,
+        displayName: p.displayName,
+        role: p.role,
+        isConnected: p.isConnected !== false,
+      });
+    });
+
+    // Add live socket participants
+    (liveSocketParticipants || []).forEach((p) => {
+      if (p.id) {
+        map.set(p.id, {
+          id: p.id,
+          displayName: p.displayName,
+          role: p.role,
+          isConnected: true,
+        });
+      }
+    });
+
+    return Array.from(map.values());
+  }, [session, dbParticipants, liveSocketParticipants]);
+
+  // Compute 3 Seats
+  const hostUser = allKnownParticipants.find((p) => p.role === 'host') || (session ? {
+    id: session.user_id,
+    displayName: session.display_name,
+    role: session.role,
+    isConnected: true,
+  } : null);
+
+  const viewers = allKnownParticipants.filter((p) => p.id !== hostUser?.id);
+  const seat2 = viewers[0] || null;
+  const seat3 = viewers[1] || null;
+  const totalOccupied = (hostUser ? 1 : 0) + (seat2 ? 1 : 0) + (seat3 ? 1 : 0);
+
+  // 5. Mobile Native Share Sheet & Clipboard Copy
+  const handleShareOrCopy = async () => {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const inviteUrl = rawInviteToken
       ? `${origin}/join/${rawInviteToken}`
-      : `${origin}/join/${session?.room_id}`; // fallback
+      : session?.invite_token
+        ? `${origin}/join/${session.invite_token}`
+        : `${origin}/join/${session?.room_id}`;
 
-    navigator.clipboard.writeText(inviteUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: session?.title || 'Private Watch Party',
+          text: `Join my private 3-person cinema theater to watch together in perfect sync!`,
+          url: inviteUrl,
+        });
+        return;
+      } catch (err: any) {
+        if (err.name === 'AbortError') return;
+      }
+    }
+
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(inviteUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-cinema-950 flex flex-col items-center justify-center gap-3 text-gray-400">
+      <div className="min-h-screen bg-[#0B0F19] flex flex-col items-center justify-center gap-3 text-gray-400">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-        <p className="text-sm">Connecting to cinema...</p>
+        <p className="text-sm font-medium">Entering Virtual Cinema...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-cinema-950 flex flex-col">
-      {/* Top Bar */}
-      <header className="h-16 border-b border-cinema-850 px-6 flex items-center justify-between bg-cinema-900/50 backdrop-blur-md">
-        <div className="flex items-center gap-4">
-          <div className="w-9 h-9 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
-            <Film className="w-4 h-4" />
+    <div className="min-h-screen bg-[#0B0F19] text-gray-100 flex flex-col">
+      {/* Top Header Bar */}
+      <header className="h-16 border-b border-white/[0.08] px-4 sm:px-6 flex items-center justify-between bg-[#111827]/60 backdrop-blur-xl sticky top-0 z-30">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+            <Film className="w-4 h-4 text-white" />
           </div>
-          <div>
-            <h1 className="text-sm font-bold text-white tracking-wide flex items-center gap-2">
-              <span>{session?.title || 'Private Watch Party'}</span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-cinema-800 text-gray-400 font-mono font-normal">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm font-bold text-white tracking-tight truncate max-w-[140px] sm:max-w-xs md:max-w-md">
+                {session?.title || 'Private Cinema'}
+              </h1>
+              <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-gray-400 font-mono border border-white/[0.06]">
                 {slug}
               </span>
-            </h1>
-            <div className="flex items-center gap-2 text-xs text-gray-400">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>Room Synchronized</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>Sync Online</span>
             </div>
           </div>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-3">
+        {/* Header Right Actions */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {isHost && (
             <button
               onClick={isSharing ? stopScreenShare : startScreenShare}
-              className={`flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shadow-sm ${isSharing
-                ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/20'
-                : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20'
-                }`}
+              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl transition-all shadow-md active:scale-95 ${
+                isSharing
+                  ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/20'
+                  : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/25'
+              }`}
             >
               {isSharing ? (
                 <>
                   <StopCircle className="w-3.5 h-3.5" />
-                  <span>Stop Screen Share</span>
+                  <span className="hidden sm:inline">Stop Share</span>
                 </>
               ) : (
                 <>
                   <Monitor className="w-3.5 h-3.5" />
-                  <span>Share Screen</span>
+                  <span className="hidden sm:inline">Share Screen</span>
                 </>
               )}
             </button>
           )}
 
           <button
-            onClick={copyInviteLink}
-            className="flex items-center gap-2 bg-cinema-850 hover:bg-cinema-800 border border-cinema-700/60 text-xs font-semibold px-3 py-1.5 rounded-lg text-gray-200 transition-colors shadow-sm"
+            onClick={handleShareOrCopy}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] border border-white/[0.1] text-white transition-all shadow-sm active:scale-95"
+            title="Share invite link"
           >
             {copied ? (
               <>
                 <Check className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-emerald-400">Link Copied!</span>
+                <span className="text-emerald-400">Copied!</span>
               </>
             ) : (
               <>
-                <Copy className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Copy Invite Link</span>
+                <Share2 className="w-3.5 h-3.5 text-indigo-400" />
+                <span className="hidden sm:inline">Invite Friend</span>
               </>
             )}
           </button>
         </div>
       </header>
 
-      {/* Main Cinema Theater */}
-      <div className="flex-1 flex flex-col p-4 md:p-6 max-w-7xl mx-auto w-full gap-4">
-        {/* Video Canvas Stage: Switches between Engine A (Screen Share) and Engine B (Direct Video) */}
-        <div className="flex-1 bg-black rounded-2xl border border-cinema-850 flex flex-col items-center justify-center relative overflow-hidden shadow-2xl min-h-[460px]">
+      {/* Main Theater View */}
+      <main className="flex-1 max-w-6xl w-full mx-auto p-3 sm:p-5 flex flex-col gap-4">
+        {/* Cinema Screen Stage */}
+        <div className="w-full aspect-video max-h-[64vh] sm:max-h-[70vh] rounded-2xl bg-black border border-white/[0.08] overflow-hidden relative shadow-2xl flex flex-col justify-center items-center">
           {isSharing || isRemoteSharing || localStream || remoteStream ? (
             <WebRTCScreenPlayer
               localStream={localStream}
@@ -195,85 +285,114 @@ export default function RoomPage() {
           )}
         </div>
 
-        {/* 3-Seat Participant Bar */}
-        <div className="bg-cinema-900 border border-cinema-800 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-            <Users className="w-4 h-4 text-indigo-400" />
-            <span>Cinema Seats (Max 3)</span>
+        {/* 3-Seat Cinema Lounge */}
+        <div className="bg-[#111827]/50 border border-white/[0.08] rounded-2xl p-4 backdrop-blur-xl flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-semibold tracking-wider uppercase text-gray-400">
+              <Users className="w-4 h-4 text-indigo-400" />
+              <span>Cinema Lounge</span>
+            </div>
+            <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              {totalOccupied} / 3 Seats Active
+            </span>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 w-full md:w-auto">
-            {/* Seat 1 (Active Host or User) */}
-            <div className="bg-cinema-950 border border-cinema-700/60 rounded-lg px-4 py-2.5 flex items-center gap-3 min-w-[160px]">
-              <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-xs text-white shadow">
-                {session?.display_name?.[0]?.toUpperCase() || 'H'}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Seat 1: Host */}
+            <div className="bg-white/[0.03] border border-indigo-500/30 rounded-xl p-3 flex items-center gap-3 relative overflow-hidden shadow-sm">
+              <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-indigo-600/30 relative">
+                {hostUser?.displayName?.[0]?.toUpperCase() || 'H'}
+                <Crown className="w-3.5 h-3.5 text-amber-300 absolute -top-1 -right-1 drop-shadow" />
               </div>
-              <div className="overflow-hidden">
-                <p className="text-xs font-semibold text-white truncate">
-                  {session?.display_name || 'Host'}
-                </p>
-                <p className="text-[10px] text-indigo-400 uppercase tracking-wider">
-                  {session?.role || 'Host'}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs font-bold text-white truncate">
+                    {hostUser?.displayName || 'Host'}
+                  </p>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
+                </div>
+                <p className="text-[10px] text-indigo-300 font-medium uppercase tracking-wider">
+                  Host & Streamer
                 </p>
               </div>
             </div>
 
-            {/* Seat 2 */}
-            {liveParticipants?.filter((p) => p.id !== session?.user_id)[0] ? (
-              <div className="bg-cinema-950 border border-cinema-700/60 rounded-lg px-4 py-2.5 flex items-center gap-3 min-w-[160px]">
-                <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-xs text-white shadow">
-                  {liveParticipants.filter((p) => p.id !== session?.user_id)[0].displayName?.[0]?.toUpperCase() || 'V'}
+            {/* Seat 2: Friend 1 */}
+            {seat2 ? (
+              <div className="bg-white/[0.03] border border-emerald-500/30 rounded-xl p-3 flex items-center gap-3 relative overflow-hidden shadow-sm">
+                <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-emerald-600/30">
+                  {seat2.displayName?.[0]?.toUpperCase() || 'F'}
                 </div>
-                <div className="overflow-hidden">
-                  <p className="text-xs font-semibold text-white truncate">
-                    {liveParticipants.filter((p) => p.id !== session?.user_id)[0].displayName}
-                  </p>
-                  <p className="text-[10px] text-emerald-400 uppercase tracking-wider">
-                    {liveParticipants.filter((p) => p.id !== session?.user_id)[0].role}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs font-bold text-white truncate">
+                      {seat2.displayName}
+                    </p>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
+                  </div>
+                  <p className="text-[10px] text-emerald-300 font-medium uppercase tracking-wider">
+                    Viewer · Synchronized
                   </p>
                 </div>
               </div>
             ) : (
-              <div className="bg-cinema-950/40 border border-dashed border-cinema-800 rounded-lg px-4 py-2.5 flex items-center gap-3 min-w-[160px]">
-                <div className="w-7 h-7 rounded-full bg-cinema-900 border border-cinema-800 flex items-center justify-center text-xs text-gray-600">
-                  2
+              <button
+                onClick={handleShareOrCopy}
+                className="bg-white/[0.01] hover:bg-white/[0.04] border border-dashed border-white/[0.15] hover:border-indigo-500/40 rounded-xl p-3 flex items-center gap-3 text-left transition-all group"
+              >
+                <div className="w-10 h-10 shrink-0 rounded-full bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-gray-400 group-hover:text-indigo-400 group-hover:bg-indigo-500/10 transition-colors">
+                  <UserPlus className="w-4 h-4" />
                 </div>
-                <div>
-                  <p className="text-xs font-medium text-gray-500">Empty Seat</p>
-                  <p className="text-[10px] text-gray-600">Invite Viewer</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-gray-300 group-hover:text-white transition-colors">
+                    Seat 2 Available
+                  </p>
+                  <p className="text-[10px] text-gray-500 group-hover:text-indigo-400 transition-colors">
+                    Tap to invite friend
+                  </p>
                 </div>
-              </div>
+              </button>
             )}
 
-            {/* Seat 3 */}
-            {liveParticipants?.filter((p) => p.id !== session?.user_id)[1] ? (
-              <div className="bg-cinema-950 border border-cinema-700/60 rounded-lg px-4 py-2.5 flex items-center gap-3 min-w-[160px]">
-                <div className="w-7 h-7 rounded-full bg-teal-600 flex items-center justify-center font-bold text-xs text-white shadow">
-                  {liveParticipants.filter((p) => p.id !== session?.user_id)[1].displayName?.[0]?.toUpperCase() || 'V'}
+            {/* Seat 3: Friend 2 */}
+            {seat3 ? (
+              <div className="bg-white/[0.03] border border-teal-500/30 rounded-xl p-3 flex items-center gap-3 relative overflow-hidden shadow-sm">
+                <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-tr from-cyan-600 to-teal-500 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-cyan-600/30">
+                  {seat3.displayName?.[0]?.toUpperCase() || 'F'}
                 </div>
-                <div className="overflow-hidden">
-                  <p className="text-xs font-semibold text-white truncate">
-                    {liveParticipants.filter((p) => p.id !== session?.user_id)[1].displayName}
-                  </p>
-                  <p className="text-[10px] text-teal-400 uppercase tracking-wider">
-                    {liveParticipants.filter((p) => p.id !== session?.user_id)[1].role}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs font-bold text-white truncate">
+                      {seat3.displayName}
+                    </p>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
+                  </div>
+                  <p className="text-[10px] text-teal-300 font-medium uppercase tracking-wider">
+                    Viewer · Synchronized
                   </p>
                 </div>
               </div>
             ) : (
-              <div className="bg-cinema-950/40 border border-dashed border-cinema-800 rounded-lg px-4 py-2.5 flex items-center gap-3 min-w-[160px]">
-                <div className="w-7 h-7 rounded-full bg-cinema-900 border border-cinema-800 flex items-center justify-center text-xs text-gray-600">
-                  3
+              <button
+                onClick={handleShareOrCopy}
+                className="bg-white/[0.01] hover:bg-white/[0.04] border border-dashed border-white/[0.15] hover:border-indigo-500/40 rounded-xl p-3 flex items-center gap-3 text-left transition-all group"
+              >
+                <div className="w-10 h-10 shrink-0 rounded-full bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-gray-400 group-hover:text-indigo-400 group-hover:bg-indigo-500/10 transition-colors">
+                  <UserPlus className="w-4 h-4" />
                 </div>
-                <div>
-                  <p className="text-xs font-medium text-gray-500">Empty Seat</p>
-                  <p className="text-[10px] text-gray-600">Invite Viewer</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-gray-300 group-hover:text-white transition-colors">
+                    Seat 3 Available
+                  </p>
+                  <p className="text-[10px] text-gray-500 group-hover:text-indigo-400 transition-colors">
+                    Tap to invite friend
+                  </p>
                 </div>
-              </div>
+              </button>
             )}
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

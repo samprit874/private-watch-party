@@ -1,5 +1,6 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
+import { pool } from '../db/pool.js';
 import { RoomService } from '../services/room.service.js';
 import { PlaybackService } from '../services/playback.service.js';
 import { SESSION_COOKIE_NAME } from '@watchparty/shared';
@@ -26,22 +27,20 @@ export function initSocketServer(httpServer: HttpServer): Server {
   // Socket Authentication Middleware
   io.use(async (socket, next) => {
     try {
-      const cookieHeader = socket.handshake.headers.cookie;
-      let sessionToken: string | undefined;
+      // Prioritize explicit handshake auth token from client
+      let sessionToken: string | undefined = (socket.handshake.auth?.token as string) || undefined;
 
-      if (cookieHeader) {
-        const cookies = Object.fromEntries(
-          cookieHeader.split('; ').map((c) => {
-            const [k, ...v] = c.split('=');
-            return [k, v.join('=')];
-          })
-        );
-        sessionToken = cookies[SESSION_COOKIE_NAME];
-      }
-
-      // Also allow handshake auth token if cookies restricted
-      if (!sessionToken && socket.handshake.auth?.token) {
-        sessionToken = socket.handshake.auth.token;
+      if (!sessionToken) {
+        const cookieHeader = socket.handshake.headers.cookie;
+        if (cookieHeader) {
+          const cookies = Object.fromEntries(
+            cookieHeader.split('; ').map((c) => {
+              const [k, ...v] = c.split('=');
+              return [k, v.join('=')];
+            })
+          );
+          sessionToken = cookies[SESSION_COOKIE_NAME];
+        }
       }
 
       if (!sessionToken) {
@@ -79,8 +78,12 @@ export function initSocketServer(httpServer: HttpServer): Server {
 
     console.log(`[Socket] User ${displayName} (${userId}) connected to ${roomChannel}`);
 
+    // Update database connection status
+    pool.query('UPDATE participants SET is_connected = TRUE WHERE room_id = $1 AND user_id = $2', [roomId, userId]).catch(() => {});
+
     // Notify room of presence update
     io.to(roomChannel).emit('PARTICIPANT_JOINED', {
+      id: userId,
       userId,
       displayName,
       role,
@@ -88,16 +91,24 @@ export function initSocketServer(httpServer: HttpServer): Server {
       timestamp: Date.now(),
     });
 
-    // Send full current room roster to connecting socket
+    // Send deduplicated current room roster to connecting socket
     try {
       const roomSockets = await io.in(roomChannel).fetchSockets();
-      const activeParticipants = roomSockets.map((s) => ({
-        id: (s as any).data.userId,
-        displayName: (s as any).data.displayName,
-        role: (s as any).data.role,
-        socketId: s.id,
-        isConnected: true,
-      }));
+      const seen = new Set<string>();
+      const activeParticipants: any[] = [];
+      for (const s of roomSockets) {
+        const uId = (s as any).data?.userId;
+        if (uId && !seen.has(uId)) {
+          seen.add(uId);
+          activeParticipants.push({
+            id: uId,
+            displayName: (s as any).data.displayName,
+            role: (s as any).data.role,
+            socketId: s.id,
+            isConnected: true,
+          });
+        }
+      }
       socket.emit('ROOM_PARTICIPANTS', activeParticipants);
 
       // If screen share is already active in this room, notify joining socket
