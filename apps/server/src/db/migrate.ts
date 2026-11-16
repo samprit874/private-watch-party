@@ -25,6 +25,8 @@ export async function runMigrations() {
 
     await client.query('BEGIN');
     await client.query(sql);
+    await client.query('ALTER TABLE rooms ADD COLUMN IF NOT EXISTS join_code VARCHAR(6);');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_rooms_join_code ON rooms(join_code);');
     await client.query('COMMIT');
     console.log('Successfully applied database schema migrations.');
   } catch (err) {

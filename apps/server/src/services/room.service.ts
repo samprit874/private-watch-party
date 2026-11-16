@@ -10,6 +10,7 @@ export interface CreateRoomInput {
 export interface CreateRoomResult {
   roomId: string;
   slug: string;
+  joinCode: string;
   inviteToken: string;
   sessionToken: string;
   hostUser: {
@@ -19,14 +20,16 @@ export interface CreateRoomResult {
 }
 
 export interface JoinRoomInput {
-  inviteToken: string;
   displayName: string;
+  inviteToken?: string;
+  joinCode?: string;
 }
 
 export interface JoinRoomResult {
   roomId: string;
   slug: string;
   sessionToken: string;
+  joinCode?: string;
   user: {
     id: string;
     displayName: string;
@@ -43,6 +46,7 @@ export interface RoomDetails {
   activeParticipantsCount: number;
   isFull: boolean;
   expiresAt: Date;
+  joinCode?: string;
 }
 
 export class RoomService {
@@ -68,12 +72,15 @@ export class RoomService {
       const sessionToken = generateRandomToken(32);
       const sessionTokenHash = hashToken(sessionToken);
 
+      // Generate 6-digit numeric OTP join code (e.g. 583921)
+      const joinCode = Math.floor(100000 + Math.random() * 900000).toString();
+
       // 3. Create Room
       const roomRes = await client.query(
-        `INSERT INTO rooms (slug, invite_token_hash, host_id, title)
-         VALUES ($1, $2, $3, $4)
-         RETURNING id, slug, title`,
-        [slug, inviteTokenHash, hostUser.id, input.title?.trim() || 'Dudu & Bubu']
+        `INSERT INTO rooms (slug, invite_token_hash, host_id, title, join_code)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, slug, title, join_code`,
+        [slug, inviteTokenHash, hostUser.id, input.title?.trim() || 'Dudu & Bubu', joinCode]
       );
       const room = roomRes.rows[0];
 
@@ -96,6 +103,7 @@ export class RoomService {
       return {
         roomId: room.id,
         slug: room.slug,
+        joinCode: room.join_code || joinCode,
         inviteToken,
         sessionToken,
         hostUser: {
@@ -145,27 +153,78 @@ export class RoomService {
       activeParticipantsCount,
       isFull: activeParticipantsCount >= row.max_participants,
       expiresAt: row.expires_at,
+      joinCode: row.join_code,
+    };
+  }
+
+  /**
+   * Validates a 6-digit OTP join code and returns room status (open/locked/full).
+   */
+  static async getRoomByJoinCode(joinCode: string): Promise<RoomDetails | null> {
+    const cleanCode = joinCode.trim();
+    const roomRes = await pool.query(
+      `SELECT r.id, r.slug, r.title, r.is_locked, r.max_participants, r.expires_at, r.join_code,
+              COUNT(p.id) FILTER (WHERE p.is_connected = TRUE) AS active_count
+       FROM rooms r
+       LEFT JOIN participants p ON p.room_id = r.id
+       WHERE r.join_code = $1
+         AND r.is_suspended = FALSE
+         AND r.expires_at > NOW()
+       GROUP BY r.id`,
+      [cleanCode]
+    );
+
+    if (roomRes.rows.length === 0) {
+      return null;
+    }
+
+    const row = roomRes.rows[0];
+    const activeParticipantsCount = parseInt(row.active_count || '0', 10);
+
+    return {
+      id: row.id,
+      slug: row.slug,
+      title: row.title,
+      isLocked: row.is_locked,
+      maxParticipants: row.max_participants,
+      activeParticipantsCount,
+      isFull: activeParticipantsCount >= row.max_participants,
+      expiresAt: row.expires_at,
+      joinCode: row.join_code,
     };
   }
 
   /**
    * Concurrency-safe atomic participant join. Enforces 3-person ceiling.
+   * Supports either inviteToken or 6-digit joinCode.
    */
   static async joinRoom(input: JoinRoomInput): Promise<JoinRoomResult> {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
-      const inviteTokenHash = hashToken(input.inviteToken);
-
-      // 1. Lock room row to serialize join attempts
-      const roomRes = await client.query(
-        `SELECT id, slug, is_locked, expires_at, max_participants
-         FROM rooms
-         WHERE invite_token_hash = $1
-         FOR UPDATE`,
-        [inviteTokenHash]
-      );
+      // 1. Lock room row to serialize join attempts by code or inviteToken
+      let roomRes;
+      if (input.joinCode) {
+        roomRes = await client.query(
+          `SELECT id, slug, is_locked, expires_at, max_participants, join_code
+           FROM rooms
+           WHERE join_code = $1
+           FOR UPDATE`,
+          [input.joinCode.trim()]
+        );
+      } else if (input.inviteToken) {
+        const inviteTokenHash = hashToken(input.inviteToken);
+        roomRes = await client.query(
+          `SELECT id, slug, is_locked, expires_at, max_participants, join_code
+           FROM rooms
+           WHERE invite_token_hash = $1
+           FOR UPDATE`,
+          [inviteTokenHash]
+        );
+      } else {
+        throw new Error('TOKEN_OR_CODE_REQUIRED');
+      }
 
       if (roomRes.rows.length === 0) {
         throw new Error('ROOM_NOT_FOUND');
@@ -217,6 +276,7 @@ export class RoomService {
         roomId: room.id,
         slug: room.slug,
         sessionToken,
+        joinCode: room.join_code,
         user: {
           id: user.id,
           displayName: user.display_name,
@@ -240,7 +300,7 @@ export class RoomService {
     const res = await pool.query(
       `SELECT p.id AS participant_id, p.role, p.is_connected,
               u.id AS user_id, u.display_name, u.is_guest,
-              r.id AS room_id, r.slug, r.title, r.is_locked, r.host_id, r.media_secret, r.media_epoch
+              r.id AS room_id, r.slug, r.title, r.is_locked, r.host_id, r.media_secret, r.media_epoch, r.join_code
        FROM participants p
        JOIN users u ON u.id = p.user_id
        JOIN rooms r ON r.id = p.room_id
@@ -252,6 +312,13 @@ export class RoomService {
       return null;
     }
 
-    return res.rows[0];
+    const row = res.rows[0];
+    if (!row.join_code) {
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      await pool.query('UPDATE rooms SET join_code = $1 WHERE id = $2', [code, row.room_id]).catch(() => {});
+      row.join_code = code;
+    }
+
+    return row;
   }
 }

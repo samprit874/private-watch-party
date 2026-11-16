@@ -99,9 +99,11 @@ export default function JoinPage() {
       <div className="w-full max-w-md bg-[#111827]/80 border border-white/[0.1] rounded-3xl p-6 sm:p-8 backdrop-blur-2xl shadow-2xl shadow-black/80">
         {/* Header Icon */}
         <div className="flex justify-center mb-5">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-            <Film className="w-7 h-7 text-white" />
-          </div>
+          <img
+            src="/logo.png"
+            alt="Dudu & Bubu Logo"
+            className="w-14 h-14 rounded-2xl object-cover shadow-lg shadow-indigo-500/25 border border-white/20"
+          />
         </div>
 
         {isFetching ? (

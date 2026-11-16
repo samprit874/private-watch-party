@@ -5,6 +5,7 @@ export const roomRouter = Router();
 
 roomRouter.post('/', RoomController.createRoom);
 roomRouter.get('/invite/:token', RoomController.getInviteDetails);
+roomRouter.get('/code/:code', RoomController.getRoomByCode);
 roomRouter.post('/join', RoomController.joinRoom);
 roomRouter.get('/session', RoomController.getSession);
 roomRouter.get('/:slug/participants', RoomController.getParticipants);

@@ -10,10 +10,15 @@ const CreateRoomSchema = z.object({
   title: z.string().max(128).optional(),
 });
 
-const JoinRoomSchema = z.object({
-  inviteToken: z.string().min(16, 'Invalid invite token'),
-  displayName: z.string().min(1, 'Display name is required').max(64),
-});
+const JoinRoomSchema = z
+  .object({
+    displayName: z.string().min(1, 'Display name is required').max(64),
+    inviteToken: z.string().optional(),
+    joinCode: z.string().min(6).max(6).optional(),
+  })
+  .refine((data) => data.inviteToken || data.joinCode, {
+    message: 'Either inviteToken or 6-digit joinCode is required',
+  });
 
 export class RoomController {
   static async createRoom(req: Request, res: Response) {
@@ -33,6 +38,7 @@ export class RoomController {
       return res.status(201).json({
         roomId: result.roomId,
         slug: result.slug,
+        joinCode: result.joinCode,
         inviteToken: result.inviteToken,
         sessionToken: result.sessionToken,
         hostUser: result.hostUser,
@@ -68,6 +74,25 @@ export class RoomController {
     }
   }
 
+  static async getRoomByCode(req: Request, res: Response) {
+    try {
+      const { code } = req.params;
+      if (!code || code.length !== 6) {
+        return res.status(400).json({ error: 'INVALID_CODE', message: 'A 6-digit room code is required' });
+      }
+
+      const room = await RoomService.getRoomByJoinCode(code);
+      if (!room) {
+        return res.status(404).json({ error: 'ROOM_NOT_FOUND', message: 'No active room found with this 6-digit code' });
+      }
+
+      return res.json(room);
+    } catch (err) {
+      console.error('Error getting room by code:', err);
+      return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
+    }
+  }
+
   static async joinRoom(req: Request, res: Response) {
     try {
       const parsed = JoinRoomSchema.parse(req.body);
@@ -84,6 +109,7 @@ export class RoomController {
       return res.status(200).json({
         roomId: result.roomId,
         slug: result.slug,
+        joinCode: result.joinCode,
         sessionToken: result.sessionToken,
         user: result.user,
       });
