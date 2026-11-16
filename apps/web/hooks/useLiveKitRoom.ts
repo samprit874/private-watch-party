@@ -127,9 +127,9 @@ export function useLiveKitRoom({
       await room.localParticipant.setScreenShareEnabled(true, {
         audio: true,
         resolution: {
-          width: 1280,
-          height: 720,
-          frameRate: 30,
+          width: 1920,
+          height: 1080,
+          frameRate: 60,
         },
       });
 

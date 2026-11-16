@@ -232,11 +232,13 @@ export function useWebRTCScreenShare({ roomId, slug, isHost }: UseWebRTCScreenSh
 
           await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: signal.sdp }));
           const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
+          const boostedSdp = boostSdpBitrate(answer.sdp || '');
+          const boostedAnswer = new RTCSessionDescription({ type: 'answer', sdp: boostedSdp });
+          await pc.setLocalDescription(boostedAnswer);
 
           socket.emit('WEBRTC_SIGNAL', {
             targetSocketId: senderSocketId,
-            signal: { type: 'answer', sdp: answer.sdp },
+            signal: { type: 'answer', sdp: pc.localDescription?.sdp || answer.sdp },
           });
         } else if (signal.type === 'answer') {
           // Host handles Answer from viewer
@@ -263,13 +265,50 @@ export function useWebRTCScreenShare({ roomId, slug, isHost }: UseWebRTCScreenSh
     };
   }, [roomId, slug, isHost, refreshParticipants]);
 
+// Helper to boost WebRTC SDP bandwidth to 8 Mbps for pristine 1080p 60fps streaming
+const boostSdpBitrate = (sdp: string, bitrateKbps: number = 8000): string => {
+  const lines = sdp.split('\r\n');
+  let inVideo = false;
+  const result: string[] = [];
+  for (const line of lines) {
+    if (line.startsWith('m=video')) {
+      inVideo = true;
+      result.push(line);
+      result.push(`b=AS:${bitrateKbps}`);
+      result.push(`b=TIAS:${bitrateKbps * 1000}`);
+      continue;
+    } else if (line.startsWith('m=')) {
+      inVideo = false;
+    }
+    if (inVideo && (line.startsWith('b=AS:') || line.startsWith('b=TIAS:'))) {
+      continue;
+    }
+    result.push(line);
+  }
+  return result.join('\r\n');
+};
+
   // Helper: Host initiates WebRTC Offer to a peer
   const initiateOfferToPeer = async (socket: Socket, targetSocketId: string, stream: MediaStream) => {
     try {
       const pc = new RTCPeerConnection(RTC_CONFIG);
       peerConnectionsRef.current.set(targetSocketId, pc);
 
-      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+      stream.getTracks().forEach((track) => {
+        const sender = pc.addTrack(track, stream);
+        if (track.kind === 'video') {
+          try {
+            const params = sender.getParameters();
+            if (!params.encodings || params.encodings.length === 0) {
+              params.encodings = [{}];
+            }
+            params.encodings[0].maxBitrate = 8000000; // 8 Mbps high-bitrate encoding
+            params.encodings[0].maxFramerate = 60;
+            params.encodings[0].scaleResolutionDownBy = 1.0;
+            sender.setParameters(params).catch(() => {});
+          } catch {}
+        }
+      });
 
       pc.onicecandidate = (event) => {
         if (event.candidate) {
@@ -281,11 +320,13 @@ export function useWebRTCScreenShare({ roomId, slug, isHost }: UseWebRTCScreenSh
       };
 
       const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
+      const boostedSdp = boostSdpBitrate(offer.sdp || '');
+      const boostedOffer = new RTCSessionDescription({ type: 'offer', sdp: boostedSdp });
+      await pc.setLocalDescription(boostedOffer);
 
       socket.emit('WEBRTC_SIGNAL', {
         targetSocketId,
-        signal: { type: 'offer', sdp: offer.sdp },
+        signal: { type: 'offer', sdp: pc.localDescription?.sdp || offer.sdp },
       });
     } catch (err) {
       console.error('[WebRTC] Error creating offer to peer:', err);
@@ -302,12 +343,19 @@ export function useWebRTCScreenShare({ roomId, slug, isHost }: UseWebRTCScreenSh
         throw new Error('Screen sharing is not supported in this browser environment');
       }
 
+      // Enforce 1080p Full HD at up to 60 FPS
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: {
           displaySurface: 'monitor',
-          frameRate: { ideal: 30, max: 60 },
+          width: { ideal: 1920, max: 1920 },
+          height: { ideal: 1080, max: 1080 },
+          frameRate: { ideal: 60, max: 60 },
         },
-        audio: true,
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+        },
       });
 
       localStreamRef.current = stream;
@@ -317,9 +365,12 @@ export function useWebRTCScreenShare({ roomId, slug, isHost }: UseWebRTCScreenSh
       const hasAudioTrack = stream.getAudioTracks().length > 0;
       setHasAudio(hasAudioTrack);
 
-      // Handle browser native "Stop Sharing" bar
+      // Enforce motion smoothness hint so browser maintains full 60fps
       const videoTrack = stream.getVideoTracks()[0];
       if (videoTrack) {
+        if ('contentHint' in videoTrack) {
+          (videoTrack as any).contentHint = 'motion';
+        }
         videoTrack.onended = () => {
           stopScreenShare();
         };

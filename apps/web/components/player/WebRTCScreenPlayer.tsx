@@ -91,7 +91,7 @@ export function WebRTCScreenPlayer({
       <div className="absolute top-3 left-3 z-20 flex items-center gap-2">
         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-600/90 backdrop-blur-md text-xs font-semibold text-white shadow-lg shadow-indigo-600/30">
           <Monitor className="w-3.5 h-3.5" />
-          <span>Screen Share</span>
+          <span>Screen Share · 1080p 60fps</span>
         </div>
 
         {hasAudio ? (

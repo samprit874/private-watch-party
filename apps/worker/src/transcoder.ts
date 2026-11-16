@@ -40,7 +40,7 @@ export class Transcoder {
       ? 'scale=w=480:h=854:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v480]'
       : 'scale=w=854:h=480:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2[v480]';
 
-    const filterComplex = `[0:v]fps=30,split=3[v1080_in][v720_in][v480_in]; [v1080_in]${scale1080}; [v720_in]${scale720}; [v480_in]${scale480}`;
+    const filterComplex = `[0:v]fps=60,split=3[v1080_in][v720_in][v480_in]; [v1080_in]${scale1080}; [v720_in]${scale720}; [v480_in]${scale480}`;
 
     const args: string[] = ['-y', '-i', inputPath];
 
@@ -55,9 +55,9 @@ export class Transcoder {
 
     args.push(
       '-filter_complex', filterComplex,
-      '-map', '[v1080]', '-c:v:0', 'libx264', '-preset', 'veryfast', '-b:v:0', '4000k', '-maxrate:v:0', '4200k', '-bufsize:v:0', '8000k', '-g', '60', '-keyint_min', '60', '-sc_threshold', '0',
-      '-map', '[v720]',  '-c:v:1', 'libx264', '-preset', 'veryfast', '-b:v:1', '2000k', '-maxrate:v:1', '2200k', '-bufsize:v:1', '4000k', '-g', '60', '-keyint_min', '60', '-sc_threshold', '0',
-      '-map', '[v480]',  '-c:v:2', 'libx264', '-preset', 'veryfast', '-b:v:2', '800k',  '-maxrate:v:2', '900k',  '-bufsize:v:2', '1600k', '-g', '60', '-keyint_min', '60', '-sc_threshold', '0',
+      '-map', '[v1080]', '-c:v:0', 'libx264', '-preset', 'veryfast', '-b:v:0', '6000k', '-maxrate:v:0', '6500k', '-bufsize:v:0', '12000k', '-g', '120', '-keyint_min', '60', '-sc_threshold', '0',
+      '-map', '[v720]',  '-c:v:1', 'libx264', '-preset', 'veryfast', '-b:v:1', '3000k', '-maxrate:v:1', '3300k', '-bufsize:v:1', '6000k', '-g', '120', '-keyint_min', '60', '-sc_threshold', '0',
+      '-map', '[v480]',  '-c:v:2', 'libx264', '-preset', 'veryfast', '-b:v:2', '1200k', '-maxrate:v:2', '1400k', '-bufsize:v:2', '2400k', '-g', '120', '-keyint_min', '60', '-sc_threshold', '0',
       '-map', hasAudio ? '0:a:0' : '1:a:0', '-c:a', 'aac', '-b:a', '128k', '-ac', '2',
       '-f', 'hls',
       '-hls_time', '4',

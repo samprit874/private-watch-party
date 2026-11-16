@@ -101,6 +101,8 @@ export function VideoPlayer({
         const hls = new Hls({
           enableWorker: true,
           lowLatencyMode: true,
+          capLevelToPlayerSize: false,
+          startLevel: -1,
         });
         hlsRef.current = hls;
         hls.loadSource(videoSrc);
