@@ -1,6 +1,6 @@
 # Stage 5: Cross-Device, Smart TV Navigation & End-to-End Acceptance Testing
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Implement 10-foot Smart TV spatial navigation, complete TV cinema receiver mode, mobile/tablet responsive touch experience, and comprehensive end-to-end acceptance test suite covering all 12 platform acceptance criteria.
 
@@ -21,13 +21,14 @@
 ### Task 1: Smart TV Spatial Navigation Engine
 
 **Files:**
+- Create: `packages/shared/src/spatialNavigation.ts`
 - Create: `apps/web/lib/spatialNavigation.ts`
-- Create: `apps/web/tests/spatialNavigation.test.ts`
+- Create: `apps/server/tests/spatialNavigation.test.ts`
 
-- [ ] **Step 1: Write unit tests for spatial navigation 2D distance calculation and keycode dispatch**
-- [ ] **Step 2: Implement SpatialNavigator class supporting element registration, directional movement, and remote keys**
-- [ ] **Step 3: Run tests and verify they pass**
-- [ ] **Step 4: Commit**
+- [x] **Step 1: Write unit tests for spatial navigation 2D distance calculation and keycode dispatch**
+- [x] **Step 2: Implement SpatialNavigator class supporting element registration, directional movement, and remote keys**
+- [x] **Step 3: Run tests and verify they pass**
+- [x] **Step 4: Commit**
 
 ---
 
@@ -37,10 +38,10 @@
 - Modify: `apps/web/app/tv/[slug]/page.tsx`
 - Modify: `apps/web/components/player/VideoPlayer.tsx`
 
-- [ ] **Step 1: Integrate SpatialNavigator into TV receiver page**
-- [ ] **Step 2: Mount VideoPlayer and LiveKitScreenPlayer in receiver-only mode**
-- [ ] **Step 3: Add D-pad navigable audio unlock modal and TV remote status bar**
-- [ ] **Step 4: Verify Next.js compilation and commit**
+- [x] **Step 1: Integrate SpatialNavigator into TV receiver page**
+- [x] **Step 2: Mount VideoPlayer and LiveKitScreenPlayer in receiver-only mode**
+- [x] **Step 3: Add D-pad navigable audio unlock modal and TV remote status bar**
+- [x] **Step 4: Verify Next.js compilation and commit**
 
 ---
 
@@ -49,12 +50,12 @@
 **Files:**
 - Modify: `apps/web/app/room/[slug]/page.tsx`
 - Modify: `apps/web/components/player/VideoPlayer.tsx`
-- Modify: `apps/web/components/screen-share/LiveKitScreenPlayer.tsx`
+- Modify: `apps/web/hooks/useLiveKitRoom.ts`
 
-- [ ] **Step 1: Add mobile touch gesture handling (tap to toggle controls, double tap seek)**
-- [ ] **Step 2: Add mobile screen share publisher warning (mobile browsers do not support getDisplayMedia)**
-- [ ] **Step 3: Add responsive cinema layout adjustments for portrait and landscape tablet/phone**
-- [ ] **Step 4: Commit**
+- [x] **Step 1: Add mobile touch gesture handling (tap to toggle controls, double tap seek)**
+- [x] **Step 2: Add mobile screen share publisher warning (mobile browsers do not support getDisplayMedia)**
+- [x] **Step 3: Add responsive cinema layout adjustments for portrait and landscape tablet/phone**
+- [x] **Step 4: Commit**
 
 ---
 
@@ -62,9 +63,8 @@
 
 **Files:**
 - Create: `apps/server/tests/e2e/watchParty.e2e.test.ts`
-- Modify: `package.json`
 
-- [ ] **Step 1: Write E2E acceptance suite covering 12 blueprint acceptance criteria**
+- [x] **Step 1: Write E2E acceptance suite covering 12 blueprint acceptance criteria**
   - Test 1: Room creation & invite token hashing
   - Test 2: Host auto-join
   - Test 3: Viewer 1 & Viewer 2 joining (capacity = 3)
@@ -77,6 +77,6 @@
   - Test 10: Anti-SSRF protection against internal IPs
   - Test 11: Edge HLS token verification & epoch revocation
   - Test 12: TV spatial navigation and remote key mapping
-- [ ] **Step 2: Run all tests across workspaces (`npm test`)**
-- [ ] **Step 3: Run production Next.js build (`npm --workspace=@watchparty/web run build`)**
-- [ ] **Step 4: Commit**
+- [x] **Step 2: Run all tests across workspaces (`npm test`)**
+- [x] **Step 3: Run production Next.js build (`npm --workspace=@watchparty/web run build`)**
+- [x] **Step 4: Commit**
