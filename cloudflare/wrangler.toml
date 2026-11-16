@@ -1,0 +1,7 @@
+name = "dudu-bubu-edge"
+main = "worker.js"
+compatibility_date = "2024-04-01"
+
+# 24/7 Keepalive Cron Trigger (every 5 minutes, 100% free on Cloudflare)
+[triggers]
+crons = ["*/5 * * * *"]

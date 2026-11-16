@@ -18,10 +18,12 @@ import { useSocketSync } from '../../hooks/useSocketSync';
 import { UploadModal } from '../upload/UploadModal';
 import { getApiBaseUrl } from '../../lib/api';
 import { enterLandscapeFullscreen, exitLandscapeFullscreen, isFullscreenActive } from '../../lib/fullscreen';
+import { Socket } from 'socket.io-client';
 
 interface VideoPlayerProps {
   roomId?: string;
   isHost: boolean;
+  socket?: Socket | null;
   showUrlModal?: boolean;
   setShowUrlModal?: (show: boolean) => void;
   showUploadModal?: boolean;
@@ -33,6 +35,7 @@ const PLAYBACK_RATES = [0.75, 1.0, 1.25, 1.5, 2.0];
 export function VideoPlayer({
   roomId,
   isHost,
+  socket,
   showUrlModal: externalShowUrlModal,
   setShowUrlModal: externalSetShowUrlModal,
   showUploadModal: externalShowUploadModal,
@@ -76,6 +79,7 @@ export function VideoPlayer({
     roomId,
     isHost,
     videoRef,
+    socket,
     onMediaChange: (newUrl) => {
       setVideoSrc(newUrl);
       if (videoRef.current) {

@@ -18,11 +18,12 @@ export interface AuthenticatedSocket extends Socket {
 export function initSocketServer(httpServer: HttpServer): Server {
   const io = new Server(httpServer, {
     cors: {
-      origin: process.env.CLIENT_URL || 'http://localhost:3000',
+      origin: (origin, callback) => callback(null, true),
       credentials: true,
     },
-    pingInterval: 10000,
-    pingTimeout: 5000,
+    transports: ['websocket', 'polling'],
+    pingInterval: 25000,
+    pingTimeout: 20000,
   });
 
   // Socket Authentication Middleware

@@ -15,6 +15,7 @@ interface UseSocketSyncOptions {
   roomId?: string;
   isHost: boolean;
   videoRef: React.RefObject<HTMLVideoElement>;
+  socket?: Socket | null;
   onMediaChange?: (url: string, title?: string) => void;
   onParticipantsUpdate?: (participants: Array<{ id: string; displayName: string; role: string; socketId: string }>) => void;
   onScreenShareStart?: (data: { hostId: string; hostSocketId: string; hasAudio: boolean }) => void;
@@ -25,6 +26,7 @@ export function useSocketSync({
   roomId,
   isHost,
   videoRef,
+  socket: externalSocket,
   onMediaChange,
   onParticipantsUpdate,
   onScreenShareStart,
@@ -44,28 +46,41 @@ export function useSocketSync({
   });
   const [playbackState, setPlaybackState] = useState<PlaybackState | null>(null);
 
-  // 1. Initialize Socket.IO connection
+  // 1. Initialize or attach to shared Socket.IO connection
   useEffect(() => {
+    const shouldCreate = !externalSocket;
     const serverUrl = getSocketUrl();
     const token = getSessionToken();
-    const socket = io(serverUrl, {
-      withCredentials: true,
-      auth: { token },
-      transports: ['websocket', 'polling'],
-      autoConnect: true,
-    });
+    const socket =
+      externalSocket ||
+      io(serverUrl, {
+        withCredentials: true,
+        auth: { token },
+        transports: ['websocket'],
+        upgrade: false,
+        reconnection: true,
+        reconnectionDelay: 500,
+        autoConnect: true,
+      });
 
     socketRef.current = socket;
 
-    socket.on('connect', () => {
+    if (socket.connected) {
       setIsConnected(true);
-      // Run initial NTP Ping
       socket.emit('NTP_PING', { clientTime: Date.now() });
-    });
+    }
 
-    socket.on('disconnect', () => {
+    const onConnect = () => {
+      setIsConnected(true);
+      socket.emit('NTP_PING', { clientTime: Date.now() });
+    };
+
+    const onDisconnect = () => {
       setIsConnected(false);
-    });
+    };
+
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
 
     // Handle NTP Pong
     socket.on('NTP_PONG', (data: { clientTime: number; serverTime: number }) => {
@@ -187,9 +202,13 @@ export function useSocketSync({
 
     return () => {
       clearInterval(ntpInterval);
-      socket.disconnect();
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+      if (shouldCreate) {
+        socket.disconnect();
+      }
     };
-  }, [roomId, videoRef]);
+  }, [roomId, videoRef, externalSocket]);
 
   // 2. Playback Synchronization & Drift Correction Loop (Runs every 1000ms for viewers)
   useEffect(() => {

@@ -43,6 +43,7 @@ export default function RoomPage() {
 
   // 1. WebRTC Screen Share Hook, Live Socket Presence, & Room Chat
   const {
+    socket,
     isSharing,
     isRemoteSharing,
     hasAudio,
@@ -108,8 +109,6 @@ export default function RoomPage() {
 
   useEffect(() => {
     fetchParticipants();
-    const interval = setInterval(fetchParticipants, 3000);
-    return () => clearInterval(interval);
   }, [fetchParticipants]);
 
   // 4. Unified Participant Deduplication
@@ -296,6 +295,7 @@ export default function RoomPage() {
             <VideoPlayer
               roomId={session?.room_id}
               isHost={isHost}
+              socket={socket}
               showUrlModal={showUrlModal}
               setShowUrlModal={setShowUrlModal}
               showUploadModal={showUploadModal}

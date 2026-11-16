@@ -28,10 +28,8 @@ async function start() {
     if (process.env.RUN_EMBEDDED_WORKER === 'true') {
       startEmbeddedWorker();
     }
-    // Maintain 24/7 active state on cloud instances
-    if (process.env.NODE_ENV === 'production') {
-      startKeepAliveService();
-    }
+    // Maintain 24/7 active state on cloud instances (prevent Render free tier sleeping)
+    startKeepAliveService();
   });
 }
 

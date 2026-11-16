@@ -29,10 +29,11 @@ interface UseWebRTCScreenShareOptions {
 
 const RTC_CONFIG: RTCConfiguration = {
   iceServers: [
+    { urls: 'stun:stun.cloudflare.com:3478' },
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
   ],
+  iceCandidatePoolSize: 4,
 };
 
 export function useWebRTCScreenShare({ roomId, slug, isHost }: UseWebRTCScreenShareOptions) {
@@ -89,7 +90,12 @@ export function useWebRTCScreenShare({ roomId, slug, isHost }: UseWebRTCScreenSh
     const socket = io(serverUrl, {
       withCredentials: true,
       auth: { token },
-      transports: ['websocket', 'polling'],
+      transports: ['websocket'],
+      upgrade: false,
+      reconnection: true,
+      reconnectionAttempts: 20,
+      reconnectionDelay: 500,
+      timeout: 10000,
       autoConnect: true,
     });
 
@@ -250,12 +256,7 @@ export function useWebRTCScreenShare({ roomId, slug, isHost }: UseWebRTCScreenSh
       }
     });
 
-    const pollInterval = setInterval(() => {
-      refreshParticipants();
-    }, 3500);
-
     return () => {
-      clearInterval(pollInterval);
       socket.disconnect();
       peerConnectionsRef.current.forEach((pc) => pc.close());
       peerConnectionsRef.current.clear();
