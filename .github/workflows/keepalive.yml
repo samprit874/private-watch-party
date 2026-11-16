@@ -1,0 +1,21 @@
+name: Keep Alive 24/7
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    name: Ping Services
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Signalling & Sync Server
+        run: |
+          echo "Pinging backend server..."
+          curl -s -f -m 30 https://watchparty-server-6a3v.onrender.com/health || echo "Server awake ping completed"
+
+      - name: Ping Web Cinema Frontend
+        run: |
+          echo "Pinging web frontend..."
+          curl -s -f -m 30 https://watchparty-web-75ez.onrender.com || echo "Web awake ping completed"

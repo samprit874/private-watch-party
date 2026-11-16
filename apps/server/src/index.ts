@@ -3,6 +3,7 @@ import { app } from './app.js';
 import { initSocketServer } from './socket/socketServer.js';
 import { runMigrations } from './db/migrate.js';
 import { startEmbeddedWorker } from './services/transcodeWorker.service.js';
+import { startKeepAliveService } from './services/keepAlive.service.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -26,6 +27,10 @@ async function start() {
     console.log(`Server and Socket.IO engine listening on port ${PORT}`);
     if (process.env.RUN_EMBEDDED_WORKER === 'true') {
       startEmbeddedWorker();
+    }
+    // Maintain 24/7 active state on cloud instances
+    if (process.env.NODE_ENV === 'production') {
+      startKeepAliveService();
     }
   });
 }
