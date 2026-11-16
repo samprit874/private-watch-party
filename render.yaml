@@ -4,7 +4,7 @@ services:
     name: watchparty-web
     env: node
     plan: free
-    buildCommand: npm ci && npm --workspace=@watchparty/shared run build && npm --workspace=@watchparty/web run build
+    buildCommand: npm ci --include=dev && npm --workspace=@watchparty/shared run build && npm --workspace=@watchparty/web run build
     startCommand: npm --workspace=@watchparty/web run start
     envVars:
       - key: NODE_ENV
