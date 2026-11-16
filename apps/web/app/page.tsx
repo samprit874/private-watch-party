@@ -59,8 +59,8 @@ export default function LandingPage() {
             <Film className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="font-bold text-base sm:text-lg text-white leading-tight">Private Cinema</h1>
-            <p className="text-[11px] text-gray-400">Strict 3-Person Theater</p>
+            <h1 className="font-bold text-base sm:text-lg text-white leading-tight">Dudu & Bubu</h1>
+            <p className="text-[11px] text-gray-400">Cinema & Watch Party</p>
           </div>
         </div>
 
@@ -180,7 +180,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="border-t border-white/[0.08] px-4 py-5 text-center text-xs text-gray-500 bg-[#111827]/20 backdrop-blur-md">
-        Private Watch Party · Up to 3 Participants · Built for Friends
+        Dudu & Bubu · Up to 3 Participants · Watch Together
       </footer>
     </div>
   );

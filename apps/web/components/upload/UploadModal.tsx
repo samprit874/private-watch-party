@@ -45,6 +45,10 @@ export function UploadModal({ roomId, isOpen, onClose, onUploadComplete }: Uploa
       const headers = getAuthHeaders();
 
       // 1. Initiate upload
+      const resolvedMimeType =
+        selectedFile.type ||
+        (selectedFile.name.toLowerCase().endsWith('.mkv') ? 'video/x-matroska' : 'video/mp4');
+
       const initRes = await fetch(`${serverUrl}/api/upload/init`, {
         method: 'POST',
         headers,
@@ -53,7 +57,7 @@ export function UploadModal({ roomId, isOpen, onClose, onUploadComplete }: Uploa
           roomId,
           filename: selectedFile.name,
           fileSizeBytes: selectedFile.size,
-          mimeType: selectedFile.type || 'video/mp4',
+          mimeType: resolvedMimeType,
         }),
       });
 
@@ -152,11 +156,11 @@ export function UploadModal({ roomId, isOpen, onClose, onUploadComplete }: Uploa
           >
             <UploadCloud className="w-10 h-10 text-gray-500 mx-auto mb-3" />
             <p className="text-sm font-semibold text-gray-300 mb-1">Click or drag a video file here</p>
-            <p className="text-xs text-gray-500">Supports MP4, WebM, MOV, MKV up to 4 GB</p>
+            <p className="text-xs text-gray-500">Supports MP4, WebM, MOV, MKV (.mkv) up to 4 GB</p>
             <input
               ref={fileInputRef}
               type="file"
-              accept="video/mp4,video/webm,video/quicktime,video/x-matroska"
+              accept="video/mp4,video/webm,video/quicktime,video/x-matroska,video/mkv,.mkv,.mp4,.webm,.mov"
               className="hidden"
               onChange={handleFileSelect}
             />

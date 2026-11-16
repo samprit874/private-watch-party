@@ -13,11 +13,8 @@ import {
   Loader2,
   Film,
   UploadCloud,
-  RotateCcw,
-  Gauge
 } from 'lucide-react';
 import { useSocketSync } from '../../hooks/useSocketSync';
-import { DriftIndicator } from './DriftIndicator';
 import { UploadModal } from '../upload/UploadModal';
 import { getApiBaseUrl } from '../../lib/api';
 import { enterLandscapeFullscreen, exitLandscapeFullscreen, isFullscreenActive } from '../../lib/fullscreen';
@@ -25,11 +22,22 @@ import { enterLandscapeFullscreen, exitLandscapeFullscreen, isFullscreenActive }
 interface VideoPlayerProps {
   roomId?: string;
   isHost: boolean;
+  showUrlModal?: boolean;
+  setShowUrlModal?: (show: boolean) => void;
+  showUploadModal?: boolean;
+  setShowUploadModal?: (show: boolean) => void;
 }
 
 const PLAYBACK_RATES = [0.75, 1.0, 1.25, 1.5, 2.0];
 
-export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
+export function VideoPlayer({
+  roomId,
+  isHost,
+  showUrlModal: externalShowUrlModal,
+  setShowUrlModal: externalSetShowUrlModal,
+  showUploadModal: externalShowUploadModal,
+  setShowUploadModal: externalSetShowUploadModal,
+}: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -44,8 +52,14 @@ export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
   const [isMuted, setIsMuted] = useState(false);
   const [baseRate, setBaseRate] = useState(1.0);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showUrlModal, setShowUrlModal] = useState(false);
-  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [internalShowUrlModal, setInternalShowUrlModal] = useState(false);
+  const [internalShowUploadModal, setInternalShowUploadModal] = useState(false);
+
+  const showUrlModal = externalShowUrlModal !== undefined ? externalShowUrlModal : internalShowUrlModal;
+  const setShowUrlModal = externalSetShowUrlModal || setInternalShowUrlModal;
+  const showUploadModal = externalShowUploadModal !== undefined ? externalShowUploadModal : internalShowUploadModal;
+  const setShowUploadModal = externalSetShowUploadModal || setInternalShowUploadModal;
+
   const [inputUrl, setInputUrl] = useState('');
   const [isValidatingUrl, setIsValidatingUrl] = useState(false);
   const [urlError, setUrlError] = useState<string | null>(null);
@@ -275,43 +289,6 @@ export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
         </button>
       )}
 
-      {/* Top Left: Controls & Badges */}
-      <div className="absolute top-3 left-3 z-20 flex items-center gap-2">
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs font-medium text-gray-200">
-          <Film className="w-3.5 h-3.5 text-indigo-400" />
-          <span className="hidden sm:inline">Direct Stream</span>
-        </div>
-
-        {isHost && (
-          <>
-            <button
-              onClick={() => setShowUrlModal(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-600/90 hover:bg-indigo-600 backdrop-blur-md text-xs font-semibold text-white shadow-md shadow-indigo-600/20 transition-all active:scale-95"
-            >
-              <LinkIcon className="w-3 h-3" />
-              <span>URL</span>
-            </button>
-
-            <button
-              onClick={() => setShowUploadModal(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] border border-white/10 backdrop-blur-md text-xs font-semibold text-gray-200 transition-all active:scale-95"
-            >
-              <UploadCloud className="w-3 h-3 text-indigo-400" />
-              <span>Upload</span>
-            </button>
-          </>
-        )}
-      </div>
-
-      {/* Top Right: Drift Telemetry */}
-      <div className="absolute top-3 right-3 z-20">
-        <DriftIndicator
-          driftInfo={driftInfo}
-          baseRate={baseRate}
-          isConnected={isConnected}
-        />
-      </div>
-
       {/* Bottom Controls Overlay */}
       <div
         className={`absolute bottom-0 inset-x-0 z-20 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-3 sm:p-4 ${
@@ -366,21 +343,6 @@ export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Speed Toggle Pill */}
-            <button
-              onClick={cyclePlaybackRate}
-              disabled={!isHost}
-              className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg transition-colors font-medium ${
-                baseRate !== 1.0
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white/10 hover:bg-white/20 text-gray-300'
-              } disabled:cursor-not-allowed`}
-              title="Click to cycle playback speed"
-            >
-              <Gauge className="w-3 h-3" />
-              <span>{baseRate}x</span>
-            </button>
-
             {/* Fullscreen */}
             <button onClick={toggleFullscreen} className="text-gray-300 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors">
               {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}

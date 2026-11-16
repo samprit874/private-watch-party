@@ -14,7 +14,9 @@ import {
   UserPlus,
   Loader2,
   MoreVertical,
-  X
+  X,
+  Link as LinkIcon,
+  UploadCloud
 } from 'lucide-react';
 import { VideoPlayer } from '../../../components/player/VideoPlayer';
 import { WebRTCScreenPlayer } from '../../../components/player/WebRTCScreenPlayer';
@@ -34,6 +36,8 @@ export default function RoomPage() {
   const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showMembersDrawer, setShowMembersDrawer] = useState(false);
+  const [showUrlModal, setShowUrlModal] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   const isHost = session?.role === 'host' || session?.role === 'co-host';
 
@@ -172,8 +176,8 @@ export default function RoomPage() {
     if (typeof navigator !== 'undefined' && navigator.share) {
       try {
         await navigator.share({
-          title: session?.title || 'Private Watch Party',
-          text: `Join my private 3-person cinema theater to watch together in perfect sync!`,
+          title: session?.title || 'Dudu & Bubu',
+          text: `Join my private Dudu & Bubu cinema to watch together in perfect sync!`,
           url: inviteUrl,
         });
         return;
@@ -193,7 +197,7 @@ export default function RoomPage() {
     return (
       <div className="min-h-screen bg-[#090D16] flex flex-col items-center justify-center gap-3 text-gray-400">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-        <p className="text-sm font-medium">Entering Virtual Cinema...</p>
+        <p className="text-sm font-medium">Entering Dudu & Bubu Cinema...</p>
       </div>
     );
   }
@@ -206,19 +210,13 @@ export default function RoomPage() {
           <div className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
             <Film className="w-4 h-4 text-white" />
           </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <h1 className="text-xs sm:text-sm font-bold text-white tracking-tight truncate max-w-[120px] sm:max-w-xs md:max-w-md">
-                {session?.title || 'Private Cinema'}
-              </h1>
-              <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-800 text-zinc-400 font-mono">
-                {slug}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>Sync Online</span>
-            </div>
+          <div className="min-w-0 flex items-center gap-2">
+            <h1 className="text-xs sm:text-sm font-bold text-white tracking-tight truncate max-w-[120px] sm:max-w-xs md:max-w-md">
+              {session?.title || 'Dudu & Bubu'}
+            </h1>
+            <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-800 text-zinc-400 font-mono">
+              {slug}
+            </span>
           </div>
         </div>
 
@@ -267,11 +265,11 @@ export default function RoomPage() {
             )}
           </button>
 
-          {/* 3-Dots / 3-Lines Member Drawer Trigger */}
+          {/* 3-Dots / 3-Lines Menu Trigger */}
           <button
             onClick={() => setShowMembersDrawer(true)}
             className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700/80 border border-zinc-700/60 text-white transition-all shadow-sm active:scale-95"
-            title="Cinema Members (3 Seats)"
+            title="Cinema Menu & Members (3 Dots)"
           >
             <MoreVertical className="w-4 h-4 text-zinc-300" />
             <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-indigo-600 text-white font-mono font-bold">
@@ -298,6 +296,10 @@ export default function RoomPage() {
             <VideoPlayer
               roomId={session?.room_id}
               isHost={isHost}
+              showUrlModal={showUrlModal}
+              setShowUrlModal={setShowUrlModal}
+              showUploadModal={showUploadModal}
+              setShowUploadModal={setShowUploadModal}
             />
           )}
         </div>
@@ -311,7 +313,7 @@ export default function RoomPage() {
         />
       </main>
 
-      {/* Slide-out Members Drawer (Hidden behind 3-dots / 3-lines) */}
+      {/* 3-Dots Drawer (Media Controls, Sync Telemetry, & Members) */}
       {showMembersDrawer && (
         <div className="fixed inset-0 z-50 flex justify-end">
           {/* Backdrop */}
@@ -327,7 +329,7 @@ export default function RoomPage() {
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-indigo-400" />
                 <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-100">
-                  Cinema Members
+                  Dudu & Bubu Lounge
                 </h2>
               </div>
               <button
@@ -339,8 +341,51 @@ export default function RoomPage() {
               </button>
             </div>
 
-            {/* Occupancy Indicator */}
+            {/* Sync Telemetry (Hidden under 3-dots) */}
             <div className="flex items-center justify-between bg-zinc-900/60 p-3 rounded-xl border border-zinc-800/80 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="font-semibold text-zinc-200">Synced Real-Time</span>
+              </div>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 font-mono text-[10px] border border-emerald-500/20">
+                Sub-50ms Drift
+              </span>
+            </div>
+
+            {/* Media Controls for Host (Moved from above video into 3-dots) */}
+            {isHost && (
+              <div className="flex flex-col gap-2 p-3 rounded-xl bg-zinc-900/60 border border-zinc-800/80">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                  Change Video Source
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => {
+                      setShowUrlModal(true);
+                      setShowMembersDrawer(false);
+                    }}
+                    className="flex items-center justify-center gap-1.5 p-2 rounded-xl bg-indigo-600/90 hover:bg-indigo-600 text-white text-xs font-semibold shadow-md active:scale-95 transition-all"
+                  >
+                    <LinkIcon className="w-3.5 h-3.5" />
+                    <span>Paste URL</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowUploadModal(true);
+                      setShowMembersDrawer(false);
+                    }}
+                    className="flex items-center justify-center gap-1.5 p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 text-xs font-semibold active:scale-95 transition-all"
+                  >
+                    <UploadCloud className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Upload (.mkv)</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Occupancy Indicator */}
+            <div className="flex items-center justify-between bg-zinc-900/40 p-2.5 rounded-xl border border-zinc-800/60 text-xs">
               <span className="text-zinc-400">Theater Capacity</span>
               <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30">
                 {totalOccupied} / 3 Seats Active

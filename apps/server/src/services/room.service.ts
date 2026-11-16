@@ -73,7 +73,7 @@ export class RoomService {
         `INSERT INTO rooms (slug, invite_token_hash, host_id, title)
          VALUES ($1, $2, $3, $4)
          RETURNING id, slug, title`,
-        [slug, inviteTokenHash, hostUser.id, input.title?.trim() || 'Private Watch Party']
+        [slug, inviteTokenHash, hostUser.id, input.title?.trim() || 'Dudu & Bubu']
       );
       const room = roomRes.rows[0];
 

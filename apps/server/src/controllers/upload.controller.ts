@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import { createWriteStream } from 'fs';
 import path from 'path';
 import os from 'os';
+import crypto from 'crypto';
 import { pool } from '../db/pool.js';
 import { StorageService } from '../services/storage.service.js';
 import { RoomService } from '../services/room.service.js';
@@ -14,18 +15,32 @@ const ALLOWED_MIME_TYPES = [
   'video/webm',
   'video/quicktime',
   'video/x-matroska',
+  'video/mkv',
+  'video/x-mkv',
+  'application/x-matroska',
+  'application/octet-stream',
 ];
+
+const ALLOWED_EXTENSIONS = ['.mp4', '.webm', '.mov', '.mkv'];
 
 const MAX_FILE_SIZE_BYTES = 4 * 1024 * 1024 * 1024; // 4GB
 
-const InitUploadSchema = z.object({
-  roomId: z.string().uuid(),
-  filename: z.string().min(1).max(255),
-  fileSizeBytes: z.number().int().positive().max(MAX_FILE_SIZE_BYTES, 'File size exceeds 4GB limit'),
-  mimeType: z.string().refine((val) => ALLOWED_MIME_TYPES.includes(val), {
-    message: 'Unsupported video format. Allowed: MP4, WebM, MOV, MKV',
-  }),
-});
+const InitUploadSchema = z
+  .object({
+    roomId: z.string().uuid(),
+    filename: z.string().min(1).max(255),
+    fileSizeBytes: z.number().int().positive().max(MAX_FILE_SIZE_BYTES, 'File size exceeds 4GB limit'),
+    mimeType: z.string(),
+  })
+  .refine(
+    (data) => {
+      const ext = path.extname(data.filename).toLowerCase();
+      return ALLOWED_EXTENSIONS.includes(ext) || ALLOWED_MIME_TYPES.includes(data.mimeType);
+    },
+    {
+      message: 'Unsupported video format. Allowed: MP4, WebM, MOV, MKV',
+    }
+  );
 
 const FinalizeUploadSchema = z.object({
   uploadId: z.string().uuid(),
@@ -150,6 +165,49 @@ export class UploadController {
     } catch (err: any) {
       console.error('Direct upload error:', err);
       res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
+    }
+  }
+
+  static async uploadChatImage(req: Request, res: Response) {
+    try {
+      const { imageData, filename = 'chat_image.png' } = req.body;
+      if (!imageData) {
+        return res.status(400).json({ error: 'IMAGE_DATA_REQUIRED' });
+      }
+
+      // Handle data URL (data:image/png;base64,...)
+      const matches = imageData.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      let buffer: Buffer;
+      let ext = '.png';
+
+      if (matches && matches.length === 3) {
+        const mime = matches[1].toLowerCase();
+        if (mime.includes('jpeg') || mime.includes('jpg')) ext = '.jpg';
+        else if (mime.includes('gif')) ext = '.gif';
+        else if (mime.includes('webp')) ext = '.webp';
+        buffer = Buffer.from(matches[2], 'base64');
+      } else {
+        buffer = Buffer.from(imageData, 'base64');
+      }
+
+      const fileId = crypto.randomUUID();
+      const safeFilename = `${fileId}${ext}`;
+      const chatUploadDir = path.join(os.tmpdir(), 'watchparty', 'uploads', 'chat');
+      await fs.mkdir(chatUploadDir, { recursive: true });
+      const filePath = path.join(chatUploadDir, safeFilename);
+
+      await fs.writeFile(filePath, buffer);
+
+      const backendUrl = process.env.PUBLIC_SERVER_URL || 'https://watchparty-server-6a3v.onrender.com';
+      const imageUrl = `${backendUrl}/api/uploads/chat/${safeFilename}`;
+
+      return res.status(200).json({
+        success: true,
+        url: imageUrl,
+      });
+    } catch (err: any) {
+      console.error('Chat image upload error:', err);
+      return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
     }
   }
 }

@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Private Watch Party',
-  description: 'Synchronized private virtual cinema for up to three people',
+  title: 'Dudu & Bubu - Watch Party',
+  description: 'Synchronized virtual cinema for Dudu & Bubu and friends',
 };
 
 export default function RootLayout({

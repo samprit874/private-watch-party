@@ -158,7 +158,7 @@ export default function JoinPage() {
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>You're Invited!</span>
               </div>
-              <h2 className="text-xl font-extrabold text-white tracking-tight">{room?.title || 'Private Cinema'}</h2>
+              <h2 className="text-xl font-extrabold text-white tracking-tight">{room?.title || 'Dudu & Bubu Cinema'}</h2>
               <p className="text-xs text-gray-400 mt-1">
                 {room?.activeParticipantsCount || 1} of 3 Seats Claimed
               </p>
