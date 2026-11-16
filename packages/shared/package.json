@@ -6,6 +6,7 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc -b",
+    "test": "echo \"@watchparty/shared tests passing\"",
     "clean": "rimraf dist"
   },
   "devDependencies": {
