@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { RoomService } from '../services/room.service.js';
+import { extractSessionToken } from '../utils/auth.js';
 import { SESSION_COOKIE_NAME } from '@watchparty/shared';
 
 const CreateRoomSchema = z.object({
@@ -32,6 +33,7 @@ export class RoomController {
         roomId: result.roomId,
         slug: result.slug,
         inviteToken: result.inviteToken,
+        sessionToken: result.sessionToken,
         hostUser: result.hostUser,
       });
     } catch (err) {
@@ -81,6 +83,7 @@ export class RoomController {
       return res.status(200).json({
         roomId: result.roomId,
         slug: result.slug,
+        sessionToken: result.sessionToken,
         user: result.user,
       });
     } catch (err: any) {
@@ -108,7 +111,7 @@ export class RoomController {
 
   static async getSession(req: Request, res: Response) {
     try {
-      const sessionToken = req.cookies?.[SESSION_COOKIE_NAME];
+      const sessionToken = extractSessionToken(req);
       if (!sessionToken) {
         return res.status(401).json({ error: 'UNAUTHORIZED' });
       }

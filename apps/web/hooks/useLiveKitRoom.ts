@@ -10,7 +10,7 @@ import {
   RemoteParticipant,
   LocalTrackPublication
 } from 'livekit-client';
-import { getApiBaseUrl } from '../lib/api';
+import { getApiBaseUrl, getAuthHeaders } from '../lib/api';
 
 interface UseLiveKitRoomOptions {
   roomId?: string;
@@ -47,8 +47,10 @@ export function useLiveKitRoom({
     const connectToLiveKit = async () => {
       try {
         const serverUrl = getApiBaseUrl();
+        const headers = getAuthHeaders();
         const res = await fetch(`${serverUrl}/api/rooms/${roomId}/livekit-token`, {
           method: 'POST',
+          headers,
           credentials: 'include',
         });
 

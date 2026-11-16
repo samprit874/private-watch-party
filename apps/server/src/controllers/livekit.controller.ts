@@ -1,13 +1,13 @@
 import { Request, Response } from 'express';
 import { LiveKitService } from '../services/livekit.service.js';
 import { RoomService } from '../services/room.service.js';
-import { SESSION_COOKIE_NAME } from '@watchparty/shared';
+import { extractSessionToken } from '../utils/auth.js';
 
 export class LiveKitController {
   static async getToken(req: Request, res: Response) {
     try {
       const { roomId } = req.params;
-      const sessionToken = req.cookies?.[SESSION_COOKIE_NAME];
+      const sessionToken = extractSessionToken(req);
 
       if (!sessionToken) {
         return res.status(401).json({ error: 'UNAUTHORIZED' });

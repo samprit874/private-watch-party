@@ -9,7 +9,7 @@ import {
   PlaybackState,
   DriftCorrection
 } from '@watchparty/shared';
-import { getSocketUrl } from '../lib/api';
+import { getSocketUrl, getSessionToken } from '../lib/api';
 
 interface UseSocketSyncOptions {
   roomId?: string;
@@ -35,8 +35,10 @@ export function useSocketSync({ roomId, isHost, videoRef }: UseSocketSyncOptions
   // 1. Initialize Socket.IO connection
   useEffect(() => {
     const serverUrl = getSocketUrl();
+    const token = getSessionToken();
     const socket = io(serverUrl, {
       withCredentials: true,
+      auth: { token },
       transports: ['websocket', 'polling'],
       autoConnect: true,
     });

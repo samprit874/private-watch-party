@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Film, Users, Shield, Tv, Sparkles, ArrowRight, Loader2 } from 'lucide-react';
-import { getApiBaseUrl } from '../lib/api';
+import { getApiBaseUrl, saveSessionToken } from '../lib/api';
 
 export default function LandingPage() {
   const router = useRouter();
@@ -40,6 +40,9 @@ export default function LandingPage() {
       }
 
       const data = await res.json();
+      if (data.sessionToken) {
+        saveSessionToken(data.slug, data.sessionToken);
+      }
       // Redirect to the newly created room cinema shell
       router.push(`/room/${data.slug}?invite=${data.inviteToken}`);
     } catch (err: any) {

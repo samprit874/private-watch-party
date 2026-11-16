@@ -6,7 +6,7 @@ import path from 'path';
 import { pool } from '../db/pool.js';
 import { StorageService } from '../services/storage.service.js';
 import { RoomService } from '../services/room.service.js';
-import { SESSION_COOKIE_NAME } from '@watchparty/shared';
+import { extractSessionToken } from '../utils/auth.js';
 
 const ALLOWED_MIME_TYPES = [
   'video/mp4',
@@ -33,7 +33,7 @@ const FinalizeUploadSchema = z.object({
 export class UploadController {
   static async initUpload(req: Request, res: Response) {
     try {
-      const sessionToken = req.cookies?.[SESSION_COOKIE_NAME];
+      const sessionToken = extractSessionToken(req);
       if (!sessionToken) {
         return res.status(401).json({ error: 'UNAUTHORIZED' });
       }
@@ -84,7 +84,7 @@ export class UploadController {
 
   static async finalizeUpload(req: Request, res: Response) {
     try {
-      const sessionToken = req.cookies?.[SESSION_COOKIE_NAME];
+      const sessionToken = extractSessionToken(req);
       if (!sessionToken) {
         return res.status(401).json({ error: 'UNAUTHORIZED' });
       }

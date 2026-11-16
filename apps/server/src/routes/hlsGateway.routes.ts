@@ -2,14 +2,14 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../db/pool.js';
 import { MediaAuthService } from '../services/mediaAuth.service.js';
 import { RoomService } from '../services/room.service.js';
-import { SESSION_COOKIE_NAME } from '@watchparty/shared';
+import { extractSessionToken } from '../utils/auth.js';
 
 export const hlsGatewayRouter = Router();
 
 hlsGatewayRouter.get('/:uploadId/token', async (req: Request, res: Response) => {
   try {
     const { uploadId } = req.params;
-    const sessionToken = req.cookies?.[SESSION_COOKIE_NAME];
+    const sessionToken = extractSessionToken(req);
 
     if (!sessionToken) {
       return res.status(401).json({ error: 'UNAUTHORIZED' });

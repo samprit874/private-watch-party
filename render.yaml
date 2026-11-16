@@ -10,10 +10,9 @@ services:
       - key: NODE_ENV
         value: production
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: watchparty-server
-          property: host
+        value: https://watchparty-server-6a3v.onrender.com
+      - key: BACKEND_URL
+        value: https://watchparty-server-6a3v.onrender.com
 
   # 2. Node.js API, Socket.IO & Transcoding Engine (Free Web Service)
   - type: web
@@ -33,10 +32,7 @@ services:
           name: watchparty-db
           property: connectionString
       - key: CLIENT_URL
-        fromService:
-          type: web
-          name: watchparty-web
-          property: host
+        value: https://watchparty-web-75ez.onrender.com
 
 databases:
   # Cloud Managed PostgreSQL 16 (Free Tier)

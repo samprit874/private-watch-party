@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Film, Users, Shield, Lock, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
-import { getApiBaseUrl } from '../../../lib/api';
+import { getApiBaseUrl, saveSessionToken } from '../../../lib/api';
 
 interface RoomDetails {
   id: string;
@@ -84,6 +84,9 @@ export default function JoinPage() {
       }
 
       const data = await res.json();
+      if (data.sessionToken) {
+        saveSessionToken(data.slug, data.sessionToken);
+      }
       router.push(`/room/${data.slug}`);
     } catch (err: any) {
       setError(err.message || 'Failed to join');

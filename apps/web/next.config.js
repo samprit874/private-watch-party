@@ -3,7 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@watchparty/shared'],
   async rewrites() {
-    const rawBackend = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    const rawBackend = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://watchparty-server-6a3v.onrender.com';
     const backendOrigin = rawBackend.startsWith('http') ? rawBackend : `https://${rawBackend}`;
 
     return [

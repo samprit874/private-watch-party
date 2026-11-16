@@ -19,7 +19,7 @@ import {
 import { VideoPlayer } from '../../../components/player/VideoPlayer';
 import { LiveKitScreenPlayer } from '../../../components/player/LiveKitScreenPlayer';
 import { useLiveKitRoom } from '../../../hooks/useLiveKitRoom';
-import { getApiBaseUrl } from '../../../lib/api';
+import { getApiBaseUrl, getAuthHeaders } from '../../../lib/api';
 
 interface ParticipantInfo {
   id: string;
@@ -58,7 +58,9 @@ export default function RoomPage() {
     const fetchSession = async () => {
       try {
         const serverUrl = getApiBaseUrl();
+        const headers = getAuthHeaders(slug);
         const res = await fetch(`${serverUrl}/api/rooms/session`, {
+          headers,
           credentials: 'include',
         });
 
