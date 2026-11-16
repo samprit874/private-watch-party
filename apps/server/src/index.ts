@@ -18,7 +18,7 @@ async function start() {
       console.log('Verifying and applying database schema migrations...');
       await runMigrations();
     } catch (err: any) {
-      console.warn('Auto-migration notice (schema may already be initialized):', err.message);
+      console.error('CRITICAL: Auto-migration failed:', err?.message || err);
     }
   }
 

@@ -36,7 +36,7 @@ export default function LandingPage() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || 'Failed to create room');
+        throw new Error(data.message || data.error || 'Failed to create room');
       }
 
       const data = await res.json();

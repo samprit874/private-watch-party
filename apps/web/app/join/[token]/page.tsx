@@ -80,7 +80,7 @@ export default function JoinPage() {
         if (res.status === 403) {
           throw new Error('This room has been locked by the host.');
         }
-        throw new Error(data.message || 'Failed to join room');
+        throw new Error(data.message || data.error || 'Failed to join room');
       }
 
       const data = await res.json();

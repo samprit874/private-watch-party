@@ -1,6 +1,4 @@
--- Extensions
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+-- PostgreSQL 13+ Schema for Private Watch Party (Native gen_random_uuid, zero external extensions required)
 
 -- 1. Users
 CREATE TABLE IF NOT EXISTS users (
@@ -24,7 +22,7 @@ CREATE TABLE IF NOT EXISTS rooms (
     is_locked BOOLEAN NOT NULL DEFAULT FALSE,
     max_participants SMALLINT NOT NULL DEFAULT 3 CHECK (max_participants <= 3),
     current_media_id UUID,
-    media_secret VARCHAR(64) NOT NULL DEFAULT encode(gen_random_bytes(32), 'hex'),
+    media_secret VARCHAR(64) NOT NULL DEFAULT (replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '')),
     media_epoch INTEGER NOT NULL DEFAULT 1,
     is_suspended BOOLEAN NOT NULL DEFAULT FALSE,
     expires_at TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '24 hours',

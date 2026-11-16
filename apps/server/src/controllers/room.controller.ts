@@ -39,7 +39,10 @@ export class RoomController {
         return res.status(400).json({ error: 'VALIDATION_ERROR', details: err.errors });
       }
       console.error('Error creating room:', err);
-      return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
+      return res.status(500).json({
+        error: 'INTERNAL_SERVER_ERROR',
+        message: (err as any)?.message || 'Database error while creating room',
+      });
     }
   }
 

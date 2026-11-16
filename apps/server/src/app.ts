@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import { pool } from './db/pool.js';
 import { roomRouter } from './routes/room.routes.js';
 import { mediaRouter } from './routes/media.routes.js';
 import { livekitRouter } from './routes/livekit.routes.js';
@@ -28,8 +29,25 @@ app.get('/', (_req, res) => {
   });
 });
 
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: Date.now() });
+app.get('/health', async (_req, res) => {
+  let dbStatus = 'unconfigured';
+  let tableCount = 0;
+  if (process.env.DATABASE_URL) {
+    try {
+      const dbRes = await pool.query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'");
+      dbStatus = 'connected';
+      tableCount = parseInt(dbRes.rows[0]?.count || '0', 10);
+    } catch (err: any) {
+      dbStatus = `disconnected: ${err?.message || err}`;
+    }
+  }
+
+  res.json({
+    status: 'ok',
+    db: dbStatus,
+    tableCount,
+    timestamp: Date.now(),
+  });
 });
 
 // Routes
