@@ -12,6 +12,15 @@ export interface ParticipantInfo {
   isConnected: boolean;
 }
 
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderRole: string;
+  text: string;
+  timestamp: number;
+}
+
 interface UseWebRTCScreenShareOptions {
   roomId?: string;
   slug?: string;
@@ -38,6 +47,7 @@ export function useWebRTCScreenShare({ roomId, slug, isHost }: UseWebRTCScreenSh
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [participants, setParticipants] = useState<ParticipantInfo[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // Periodic and on-demand REST participant sync fallback
@@ -50,6 +60,21 @@ export function useWebRTCScreenShare({ roomId, slug, isHost }: UseWebRTCScreenSh
         const data = await res.json();
         if (Array.isArray(data.participants) && data.participants.length > 0) {
           setParticipants(data.participants);
+        }
+      }
+    } catch {}
+  }, [slug]);
+
+  // Initial and on-demand REST chat message history fallback
+  const fetchMessages = useCallback(async () => {
+    if (!slug) return;
+    try {
+      const serverUrl = getSocketUrl();
+      const res = await fetch(`${serverUrl}/api/rooms/${slug}/messages`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.messages)) {
+          setMessages(data.messages);
         }
       }
     } catch {}
@@ -73,10 +98,24 @@ export function useWebRTCScreenShare({ roomId, slug, isHost }: UseWebRTCScreenSh
     socket.on('connect', () => {
       setIsConnected(true);
       refreshParticipants();
+      fetchMessages();
     });
 
     socket.on('disconnect', () => {
       setIsConnected(false);
+    });
+
+    // Chat Message Events
+    socket.on('MESSAGE_HISTORY', (history: ChatMessage[]) => {
+      if (Array.isArray(history)) {
+        setMessages(history);
+      }
+    });
+
+    socket.on('NEW_MESSAGE', (msg: ChatMessage) => {
+      if (msg && msg.id) {
+        setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
+      }
     });
 
     // 1. Participant Roster Updates
@@ -320,6 +359,13 @@ export function useWebRTCScreenShare({ roomId, slug, isHost }: UseWebRTCScreenSh
     socketRef.current?.emit('SCREEN_SHARE_STOP');
   }, []);
 
+  // Room Chat: Send Message
+  const sendMessage = useCallback((text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed || !socketRef.current) return;
+    socketRef.current.emit('SEND_MESSAGE', { text: trimmed });
+  }, []);
+
   return {
     socket: socketRef.current,
     isConnected,
@@ -329,6 +375,8 @@ export function useWebRTCScreenShare({ roomId, slug, isHost }: UseWebRTCScreenSh
     localStream,
     remoteStream,
     participants,
+    messages,
+    sendMessage,
     error,
     startScreenShare,
     stopScreenShare,

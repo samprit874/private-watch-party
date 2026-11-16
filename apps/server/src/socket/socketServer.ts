@@ -1,5 +1,6 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
+import crypto from 'crypto';
 import { pool } from '../db/pool.js';
 import { RoomService } from '../services/room.service.js';
 import { PlaybackService } from '../services/playback.service.js';
@@ -129,6 +130,33 @@ export function initSocketServer(httpServer: HttpServer): Server {
     // Send initial authoritative playback state to connecting socket
     const currentState = await PlaybackService.getPlaybackState(roomId);
     socket.emit('SYNC_STATE', currentState);
+
+    // Send recent room chat messages to connecting socket
+    try {
+      const msgRes = await pool.query(
+        `SELECT m.id, m.user_id, u.display_name, p.role, m.content, m.created_at
+         FROM room_messages m
+         JOIN users u ON u.id = m.user_id
+         LEFT JOIN participants p ON p.user_id = m.user_id AND p.room_id = m.room_id
+         WHERE m.room_id = $1
+         ORDER BY m.created_at ASC
+         LIMIT 50`,
+        [roomId]
+      );
+
+      const history = msgRes.rows.map((r) => ({
+        id: r.id,
+        senderId: r.user_id,
+        senderName: r.display_name,
+        senderRole: r.role || 'viewer',
+        text: r.content,
+        timestamp: new Date(r.created_at).getTime(),
+      }));
+
+      socket.emit('MESSAGE_HISTORY', history);
+    } catch (err) {
+      console.warn('[Socket] Failed to fetch message history:', err);
+    }
 
     // 1. NTP Clock Synchronization Handshake
     socket.on('NTP_PING', (data: { clientTime: number }) => {
@@ -296,6 +324,34 @@ export function initSocketServer(httpServer: HttpServer): Server {
           signal: data.signal,
         });
       }
+    });
+
+    // 13. Room Chat Messaging
+    socket.on('SEND_MESSAGE', async (data: { text: string }) => {
+      const text = data?.text?.trim();
+      if (!text || text.length > 1000) return;
+
+      const messageId = crypto.randomUUID();
+      const timestamp = Date.now();
+
+      try {
+        await pool.query(
+          `INSERT INTO room_messages (id, room_id, user_id, content, type)
+           VALUES ($1, $2, $3, $4, 'text')`,
+          [messageId, roomId, userId, text]
+        );
+      } catch (err) {
+        console.warn('[Socket] Message save error:', err);
+      }
+
+      io.to(roomChannel).emit('NEW_MESSAGE', {
+        id: messageId,
+        senderId: userId,
+        senderName: displayName,
+        senderRole: role,
+        text,
+        timestamp,
+      });
     });
 
     // Disconnect

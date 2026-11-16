@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Monitor, Volume2, VolumeX, Maximize, Minimize, StopCircle } from 'lucide-react';
+import { enterLandscapeFullscreen, exitLandscapeFullscreen, isFullscreenActive } from '../../lib/fullscreen';
 
 interface WebRTCScreenPlayerProps {
   localStream?: MediaStream | null;
@@ -43,14 +44,33 @@ export function WebRTCScreenPlayer({
     };
   }, [localStream, remoteStream, isHost]);
 
+  // Listen for fullscreen and rotation changes
+  useEffect(() => {
+    const handleFsChange = () => {
+      const active = isFullscreenActive();
+      setIsFullscreen(active);
+      if (!active && typeof screen !== 'undefined' && (screen.orientation as any)?.unlock) {
+        try {
+          (screen.orientation as any).unlock();
+        } catch {}
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFsChange);
+    document.addEventListener('webkitfullscreenchange', handleFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFsChange);
+      document.removeEventListener('webkitfullscreenchange', handleFsChange);
+    };
+  }, []);
+
   const toggleFullscreen = () => {
-    if (!containerRef.current) return;
-    if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen().catch(() => {});
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen().catch(() => {});
+    if (isFullscreenActive()) {
+      exitLandscapeFullscreen();
       setIsFullscreen(false);
+    } else {
+      enterLandscapeFullscreen(containerRef.current, videoRef.current);
+      setIsFullscreen(true);
     }
   };
 

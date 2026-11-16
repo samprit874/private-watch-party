@@ -11,14 +11,14 @@ import {
   Monitor,
   StopCircle,
   Crown,
-  UserCheck,
   UserPlus,
   Loader2,
-  Radio,
-  Sparkles
+  MoreVertical,
+  X
 } from 'lucide-react';
 import { VideoPlayer } from '../../../components/player/VideoPlayer';
 import { WebRTCScreenPlayer } from '../../../components/player/WebRTCScreenPlayer';
+import { ChatArea } from '../../../components/chat/ChatArea';
 import { useWebRTCScreenShare } from '../../../hooks/useWebRTCScreenShare';
 import { getApiBaseUrl, getAuthHeaders } from '../../../lib/api';
 
@@ -33,10 +33,11 @@ export default function RoomPage() {
   const [dbParticipants, setDbParticipants] = useState<any[]>([]);
   const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [showMembersDrawer, setShowMembersDrawer] = useState(false);
 
   const isHost = session?.role === 'host' || session?.role === 'co-host';
 
-  // 1. WebRTC Screen Share Hook & Live Socket Presence
+  // 1. WebRTC Screen Share Hook, Live Socket Presence, & Room Chat
   const {
     isSharing,
     isRemoteSharing,
@@ -44,6 +45,8 @@ export default function RoomPage() {
     localStream,
     remoteStream,
     participants: liveSocketParticipants,
+    messages,
+    sendMessage,
     startScreenShare,
     stopScreenShare,
   } = useWebRTCScreenShare({
@@ -188,7 +191,7 @@ export default function RoomPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#0B0F19] flex flex-col items-center justify-center gap-3 text-gray-400">
+      <div className="min-h-screen bg-[#090D16] flex flex-col items-center justify-center gap-3 text-gray-400">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
         <p className="text-sm font-medium">Entering Virtual Cinema...</p>
       </div>
@@ -196,23 +199,23 @@ export default function RoomPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-gray-100 flex flex-col">
+    <div className="min-h-screen bg-[#090D16] text-zinc-100 flex flex-col">
       {/* Top Header Bar */}
-      <header className="h-16 border-b border-white/[0.08] px-4 sm:px-6 flex items-center justify-between bg-[#111827]/60 backdrop-blur-xl sticky top-0 z-30">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+      <header className="h-14 sm:h-16 border-b border-zinc-800/80 px-3 sm:px-6 flex items-center justify-between bg-zinc-950/70 backdrop-blur-xl sticky top-0 z-30">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
             <Film className="w-4 h-4 text-white" />
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="text-sm font-bold text-white tracking-tight truncate max-w-[140px] sm:max-w-xs md:max-w-md">
+            <div className="flex items-center gap-1.5">
+              <h1 className="text-xs sm:text-sm font-bold text-white tracking-tight truncate max-w-[120px] sm:max-w-xs md:max-w-md">
                 {session?.title || 'Private Cinema'}
               </h1>
-              <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-gray-400 font-mono border border-white/[0.06]">
+              <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-800 text-zinc-400 font-mono">
                 {slug}
               </span>
             </div>
-            <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium">
+            <div className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-medium">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
               <span>Sync Online</span>
             </div>
@@ -220,11 +223,12 @@ export default function RoomPage() {
         </div>
 
         {/* Header Right Actions */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Host Screen Share Button */}
           {isHost && (
             <button
               onClick={isSharing ? stopScreenShare : startScreenShare}
-              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl transition-all shadow-md active:scale-95 ${
+              className={`flex items-center gap-1 text-xs font-semibold px-2.5 sm:px-3 py-1.5 rounded-xl transition-all shadow-md active:scale-95 ${
                 isSharing
                   ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/20'
                   : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/25'
@@ -244,30 +248,43 @@ export default function RoomPage() {
             </button>
           )}
 
+          {/* Invite Friend Button */}
           <button
             onClick={handleShareOrCopy}
-            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] border border-white/[0.1] text-white transition-all shadow-sm active:scale-95"
-            title="Share invite link"
+            className="flex items-center gap-1 text-xs font-semibold px-2.5 sm:px-3 py-1.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700/80 border border-zinc-700/60 text-white transition-all shadow-sm active:scale-95"
+            title="Invite friend"
           >
             {copied ? (
               <>
                 <Check className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-emerald-400">Copied!</span>
+                <span className="text-emerald-400 text-xs">Copied</span>
               </>
             ) : (
               <>
                 <Share2 className="w-3.5 h-3.5 text-indigo-400" />
-                <span className="hidden sm:inline">Invite Friend</span>
+                <span className="hidden sm:inline">Invite</span>
               </>
             )}
+          </button>
+
+          {/* 3-Dots / 3-Lines Member Drawer Trigger */}
+          <button
+            onClick={() => setShowMembersDrawer(true)}
+            className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700/80 border border-zinc-700/60 text-white transition-all shadow-sm active:scale-95"
+            title="Cinema Members (3 Seats)"
+          >
+            <MoreVertical className="w-4 h-4 text-zinc-300" />
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-indigo-600 text-white font-mono font-bold">
+              {totalOccupied}/3
+            </span>
           </button>
         </div>
       </header>
 
-      {/* Main Theater View */}
-      <main className="flex-1 max-w-6xl w-full mx-auto p-3 sm:p-5 flex flex-col gap-4">
-        {/* Cinema Screen Stage */}
-        <div className="w-full aspect-video max-h-[64vh] sm:max-h-[70vh] rounded-2xl bg-black border border-white/[0.08] overflow-hidden relative shadow-2xl flex flex-col justify-center items-center">
+      {/* Main Theater Layout: [video] under [message area] */}
+      <main className="flex-1 max-w-4xl w-full mx-auto p-3 sm:p-4 flex flex-col gap-3">
+        {/* [video] Container */}
+        <div className="w-full aspect-video rounded-2xl bg-black border border-zinc-800/80 overflow-hidden relative shadow-2xl flex flex-col justify-center items-center">
           {isSharing || isRemoteSharing || localStream || remoteStream ? (
             <WebRTCScreenPlayer
               localStream={localStream}
@@ -285,114 +302,169 @@ export default function RoomPage() {
           )}
         </div>
 
-        {/* 3-Seat Cinema Lounge */}
-        <div className="bg-[#111827]/50 border border-white/[0.08] rounded-2xl p-4 backdrop-blur-xl flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-semibold tracking-wider uppercase text-gray-400">
-              <Users className="w-4 h-4 text-indigo-400" />
-              <span>Cinema Lounge</span>
-            </div>
-            <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              {totalOccupied} / 3 Seats Active
-            </span>
-          </div>
+        {/* [message area] Directly Underneath [video] */}
+        <ChatArea
+          messages={messages}
+          onSendMessage={sendMessage}
+          currentUserId={session?.user_id}
+          className="w-full flex-1"
+        />
+      </main>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {/* Seat 1: Host */}
-            <div className="bg-white/[0.03] border border-indigo-500/30 rounded-xl p-3 flex items-center gap-3 relative overflow-hidden shadow-sm">
-              <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-indigo-600/30 relative">
-                {hostUser?.displayName?.[0]?.toUpperCase() || 'H'}
-                <Crown className="w-3.5 h-3.5 text-amber-300 absolute -top-1 -right-1 drop-shadow" />
+      {/* Slide-out Members Drawer (Hidden behind 3-dots / 3-lines) */}
+      {showMembersDrawer && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
+            onClick={() => setShowMembersDrawer(false)}
+          />
+
+          {/* Drawer Content */}
+          <div className="relative w-full max-w-xs sm:max-w-sm bg-zinc-950 border-l border-zinc-800 p-5 shadow-2xl flex flex-col gap-4 z-10 overflow-y-auto">
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-indigo-400" />
+                <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-100">
+                  Cinema Members
+                </h2>
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  <p className="text-xs font-bold text-white truncate">
-                    {hostUser?.displayName || 'Host'}
-                  </p>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
-                </div>
-                <p className="text-[10px] text-indigo-300 font-medium uppercase tracking-wider">
-                  Host & Streamer
-                </p>
-              </div>
+              <button
+                onClick={() => setShowMembersDrawer(false)}
+                className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                title="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
-            {/* Seat 2: Friend 1 */}
-            {seat2 ? (
-              <div className="bg-white/[0.03] border border-emerald-500/30 rounded-xl p-3 flex items-center gap-3 relative overflow-hidden shadow-sm">
-                <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-emerald-600/30">
-                  {seat2.displayName?.[0]?.toUpperCase() || 'F'}
+            {/* Occupancy Indicator */}
+            <div className="flex items-center justify-between bg-zinc-900/60 p-3 rounded-xl border border-zinc-800/80 text-xs">
+              <span className="text-zinc-400">Theater Capacity</span>
+              <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30">
+                {totalOccupied} / 3 Seats Active
+              </span>
+            </div>
+
+            {/* 3 Seats List */}
+            <div className="space-y-2.5">
+              {/* Seat 1: Host */}
+              <div className="bg-zinc-900/80 border border-indigo-500/30 rounded-xl p-3 flex items-center gap-3 relative shadow-sm">
+                <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-indigo-600/30 relative">
+                  {hostUser?.displayName?.[0]?.toUpperCase() || 'H'}
+                  <Crown className="w-3.5 h-3.5 text-amber-300 absolute -top-1 -right-1 drop-shadow" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <p className="text-xs font-bold text-white truncate">
-                      {seat2.displayName}
+                      {hostUser?.displayName || 'Host'}
                     </p>
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
                   </div>
-                  <p className="text-[10px] text-emerald-300 font-medium uppercase tracking-wider">
-                    Viewer · Synchronized
+                  <p className="text-[10px] text-indigo-300 font-medium uppercase tracking-wider">
+                    Host & Streamer
                   </p>
                 </div>
               </div>
-            ) : (
-              <button
-                onClick={handleShareOrCopy}
-                className="bg-white/[0.01] hover:bg-white/[0.04] border border-dashed border-white/[0.15] hover:border-indigo-500/40 rounded-xl p-3 flex items-center gap-3 text-left transition-all group"
-              >
-                <div className="w-10 h-10 shrink-0 rounded-full bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-gray-400 group-hover:text-indigo-400 group-hover:bg-indigo-500/10 transition-colors">
-                  <UserPlus className="w-4 h-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-gray-300 group-hover:text-white transition-colors">
-                    Seat 2 Available
-                  </p>
-                  <p className="text-[10px] text-gray-500 group-hover:text-indigo-400 transition-colors">
-                    Tap to invite friend
-                  </p>
-                </div>
-              </button>
-            )}
 
-            {/* Seat 3: Friend 2 */}
-            {seat3 ? (
-              <div className="bg-white/[0.03] border border-teal-500/30 rounded-xl p-3 flex items-center gap-3 relative overflow-hidden shadow-sm">
-                <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-tr from-cyan-600 to-teal-500 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-cyan-600/30">
-                  {seat3.displayName?.[0]?.toUpperCase() || 'F'}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-xs font-bold text-white truncate">
-                      {seat3.displayName}
-                    </p>
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
+              {/* Seat 2: Friend 1 */}
+              {seat2 ? (
+                <div className="bg-zinc-900/80 border border-emerald-500/30 rounded-xl p-3 flex items-center gap-3 relative shadow-sm">
+                  <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-emerald-600/30">
+                    {seat2.displayName?.[0]?.toUpperCase() || 'F'}
                   </div>
-                  <p className="text-[10px] text-teal-300 font-medium uppercase tracking-wider">
-                    Viewer · Synchronized
-                  </p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-bold text-white truncate">
+                        {seat2.displayName}
+                      </p>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
+                    </div>
+                    <p className="text-[10px] text-emerald-300 font-medium uppercase tracking-wider">
+                      Viewer · In Sync
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ) : (
+              ) : (
+                <button
+                  onClick={handleShareOrCopy}
+                  className="w-full bg-zinc-900/30 hover:bg-zinc-900/70 border border-dashed border-zinc-700 hover:border-indigo-500/50 rounded-xl p-3 flex items-center gap-3 text-left transition-all group"
+                >
+                  <div className="w-10 h-10 shrink-0 rounded-full bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center text-zinc-400 group-hover:text-indigo-400 group-hover:bg-indigo-500/10 transition-colors">
+                    <UserPlus className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium text-zinc-300 group-hover:text-white transition-colors">
+                      Seat 2 Empty
+                    </p>
+                    <p className="text-[10px] text-zinc-500 group-hover:text-indigo-400 transition-colors">
+                      Tap to invite friend
+                    </p>
+                  </div>
+                </button>
+              )}
+
+              {/* Seat 3: Friend 2 */}
+              {seat3 ? (
+                <div className="bg-zinc-900/80 border border-teal-500/30 rounded-xl p-3 flex items-center gap-3 relative shadow-sm">
+                  <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-tr from-cyan-600 to-teal-500 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-cyan-600/30">
+                    {seat3.displayName?.[0]?.toUpperCase() || 'F'}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-bold text-white truncate">
+                        {seat3.displayName}
+                      </p>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
+                    </div>
+                    <p className="text-[10px] text-teal-300 font-medium uppercase tracking-wider">
+                      Viewer · In Sync
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={handleShareOrCopy}
+                  className="w-full bg-zinc-900/30 hover:bg-zinc-900/70 border border-dashed border-zinc-700 hover:border-indigo-500/50 rounded-xl p-3 flex items-center gap-3 text-left transition-all group"
+                >
+                  <div className="w-10 h-10 shrink-0 rounded-full bg-zinc-800/80 border border-zinc-700/60 flex items-center justify-center text-zinc-400 group-hover:text-indigo-400 group-hover:bg-indigo-500/10 transition-colors">
+                    <UserPlus className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium text-zinc-300 group-hover:text-white transition-colors">
+                      Seat 3 Empty
+                    </p>
+                    <p className="text-[10px] text-zinc-500 group-hover:text-indigo-400 transition-colors">
+                      Tap to invite friend
+                    </p>
+                  </div>
+                </button>
+              )}
+            </div>
+
+            {/* Invite Button */}
+            <div className="mt-auto pt-4 border-t border-zinc-800">
               <button
                 onClick={handleShareOrCopy}
-                className="bg-white/[0.01] hover:bg-white/[0.04] border border-dashed border-white/[0.15] hover:border-indigo-500/40 rounded-xl p-3 flex items-center gap-3 text-left transition-all group"
+                className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-semibold text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/25 transition-all"
               >
-                <div className="w-10 h-10 shrink-0 rounded-full bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-gray-400 group-hover:text-indigo-400 group-hover:bg-indigo-500/10 transition-colors">
-                  <UserPlus className="w-4 h-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-gray-300 group-hover:text-white transition-colors">
-                    Seat 3 Available
-                  </p>
-                  <p className="text-[10px] text-gray-500 group-hover:text-indigo-400 transition-colors">
-                    Tap to invite friend
-                  </p>
-                </div>
+                {copied ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-300" />
+                    <span>Invite Link Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="w-4 h-4" />
+                    <span>Copy Room Invite Link</span>
+                  </>
+                )}
               </button>
-            )}
+            </div>
           </div>
         </div>
-      </main>
+      )}
     </div>
   );
 }

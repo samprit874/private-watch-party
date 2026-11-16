@@ -155,4 +155,35 @@ export class RoomController {
       return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR', message: err?.message || err });
     }
   }
+
+  static async getMessages(req: Request, res: Response) {
+    try {
+      const { slug } = req.params;
+      const result = await pool.query(
+        `SELECT m.id, m.user_id, u.display_name, p.role, m.content, m.created_at
+         FROM room_messages m
+         JOIN rooms r ON r.id = m.room_id
+         JOIN users u ON u.id = m.user_id
+         LEFT JOIN participants p ON p.user_id = m.user_id AND p.room_id = r.id
+         WHERE r.slug = $1
+         ORDER BY m.created_at ASC
+         LIMIT 100`,
+        [slug]
+      );
+
+      const messages = result.rows.map((row) => ({
+        id: row.id,
+        senderId: row.user_id,
+        senderName: row.display_name,
+        senderRole: row.role || 'viewer',
+        text: row.content,
+        timestamp: new Date(row.created_at).getTime(),
+      }));
+
+      return res.json({ messages });
+    } catch (err: any) {
+      console.error('Error fetching room messages:', err);
+      return res.status(500).json({ error: 'INTERNAL_SERVER_ERROR', message: err?.message || err });
+    }
+  }
 }
