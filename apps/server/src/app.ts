@@ -4,6 +4,8 @@ import cookieParser from 'cookie-parser';
 import { roomRouter } from './routes/room.routes.js';
 import { mediaRouter } from './routes/media.routes.js';
 import { livekitRouter } from './routes/livekit.routes.js';
+import { uploadRouter } from './routes/upload.routes.js';
+import { hlsGatewayRouter } from './routes/hlsGateway.routes.js';
 
 export const app = express();
 
@@ -23,4 +25,6 @@ app.get('/health', (_req, res) => {
 // Routes
 app.use('/api/rooms', roomRouter);
 app.use('/api/rooms', livekitRouter);
+app.use('/api/upload', uploadRouter);
+app.use('/api/media/hls', hlsGatewayRouter);
 app.use('/api/media', mediaRouter);

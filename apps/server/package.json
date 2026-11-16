@@ -11,6 +11,8 @@
     "migrate": "tsx src/db/migrate.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1169.0",
+    "@aws-sdk/s3-request-presigner": "^3.1169.0",
     "@watchparty/shared": "*",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",

@@ -12,10 +12,12 @@ import {
   Link as LinkIcon, 
   Settings, 
   Loader2,
-  Film
+  Film,
+  UploadCloud 
 } from 'lucide-react';
 import { useSocketSync } from '../../hooks/useSocketSync';
 import { DriftIndicator } from './DriftIndicator';
+import { UploadModal } from '../upload/UploadModal';
 
 interface VideoPlayerProps {
   roomId?: string;
@@ -36,6 +38,7 @@ export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
   const [baseRate, setBaseRate] = useState(1.0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showUrlModal, setShowUrlModal] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [inputUrl, setInputUrl] = useState('');
   const [isValidatingUrl, setIsValidatingUrl] = useState(false);
   const [urlError, setUrlError] = useState<string | null>(null);
@@ -233,13 +236,23 @@ export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
         </div>
 
         {isHost && (
-          <button
-            onClick={() => setShowUrlModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-600/80 hover:bg-indigo-600 backdrop-blur-md text-xs font-semibold text-white transition-colors"
-          >
-            <LinkIcon className="w-3 h-3" />
-            <span>Change Video URL</span>
-          </button>
+          <>
+            <button
+              onClick={() => setShowUrlModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-600/80 hover:bg-indigo-600 backdrop-blur-md text-xs font-semibold text-white transition-colors"
+            >
+              <LinkIcon className="w-3 h-3" />
+              <span>Direct URL</span>
+            </button>
+
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-cinema-800/80 hover:bg-cinema-700 border border-white/10 backdrop-blur-md text-xs font-semibold text-gray-200 transition-colors"
+            >
+              <UploadCloud className="w-3 h-3 text-indigo-400" />
+              <span>Upload Video</span>
+            </button>
+          </>
         )}
       </div>
 
@@ -377,6 +390,17 @@ export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
             </form>
           </div>
         </div>
+      )}
+      {/* Upload Modal */}
+      {roomId && (
+        <UploadModal
+          roomId={roomId}
+          isOpen={showUploadModal}
+          onClose={() => setShowUploadModal(false)}
+          onUploadComplete={(uploadId) => {
+            console.log('Upload completed:', uploadId);
+          }}
+        />
       )}
     </div>
   );
