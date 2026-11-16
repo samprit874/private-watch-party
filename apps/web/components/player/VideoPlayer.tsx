@@ -51,10 +51,17 @@ export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
     sendPause,
     sendSeek,
     sendRate,
+    sendMediaChange,
   } = useSocketSync({
     roomId,
     isHost,
     videoRef,
+    onMediaChange: (newUrl) => {
+      setVideoSrc(newUrl);
+      if (videoRef.current) {
+        videoRef.current.currentTime = 0;
+      }
+    },
   });
 
   // Load HLS or direct MP4 source
@@ -196,7 +203,11 @@ export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
         throw new Error(data.message || 'URL failed security validation');
       }
 
-      setVideoSrc(inputUrl.trim());
+      const trimmed = inputUrl.trim();
+      setVideoSrc(trimmed);
+      if (isHost) {
+        sendMediaChange(trimmed, 'Direct Video');
+      }
       setShowUrlModal(false);
       setInputUrl('');
     } catch (err: any) {
@@ -228,6 +239,16 @@ export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
         className="w-full h-full object-contain cursor-pointer"
         onClick={togglePlay}
       />
+
+      {/* Center Big Play Button Overlay */}
+      {!isPlaying && (
+        <button
+          onClick={togglePlay}
+          className="absolute z-20 w-16 h-16 rounded-full bg-indigo-600/90 hover:bg-indigo-500 flex items-center justify-center text-white shadow-2xl shadow-indigo-500/50 hover:scale-105 transition-all"
+        >
+          <Play className="w-8 h-8 fill-white ml-1" />
+        </button>
+      )}
 
       {/* Top Left: Media Engine Badge & Direct URL Button */}
       <div className="absolute top-4 left-4 z-20 flex items-center gap-2 opacity-90 transition-opacity">
@@ -267,7 +288,7 @@ export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
       </div>
 
       {/* Bottom Controls Overlay */}
-      <div className="absolute bottom-0 inset-x-0 z-20 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-2">
+      <div className={`absolute bottom-0 inset-x-0 z-20 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 ${!isPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity flex flex-col gap-2`}>
         {/* Scrubber Bar */}
         <div className="w-full flex items-center gap-3">
           <span className="text-[11px] font-mono text-gray-300 w-10 text-right">
@@ -397,8 +418,16 @@ export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
           roomId={roomId}
           isOpen={showUploadModal}
           onClose={() => setShowUploadModal(false)}
-          onUploadComplete={(uploadId) => {
-            console.log('Upload completed:', uploadId);
+          onUploadComplete={(streamUrlOrId) => {
+            const serverUrl = getApiBaseUrl();
+            const fullUrl = streamUrlOrId.startsWith('http')
+              ? streamUrlOrId
+              : `${serverUrl}/api/uploads/${streamUrlOrId}/video.mp4`;
+            setVideoSrc(fullUrl);
+            if (isHost) {
+              sendMediaChange(fullUrl, 'Uploaded Video');
+            }
+            setShowUploadModal(false);
           }}
         />
       )}

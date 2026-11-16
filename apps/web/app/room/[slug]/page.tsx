@@ -17,16 +17,9 @@ import {
   StopCircle
 } from 'lucide-react';
 import { VideoPlayer } from '../../../components/player/VideoPlayer';
-import { LiveKitScreenPlayer } from '../../../components/player/LiveKitScreenPlayer';
-import { useLiveKitRoom } from '../../../hooks/useLiveKitRoom';
+import { WebRTCScreenPlayer } from '../../../components/player/WebRTCScreenPlayer';
+import { useWebRTCScreenShare, ParticipantInfo } from '../../../hooks/useWebRTCScreenShare';
 import { getApiBaseUrl, getAuthHeaders } from '../../../lib/api';
-
-interface ParticipantInfo {
-  id: string;
-  displayName: string;
-  role: 'host' | 'co-host' | 'viewer';
-  isConnected: boolean;
-}
 
 export default function RoomPage() {
   const params = useParams();
@@ -44,12 +37,14 @@ export default function RoomPage() {
 
   const {
     isSharing,
+    isRemoteSharing,
     hasAudio,
-    screenTrack,
-    audioTrack,
+    localStream,
+    remoteStream,
+    participants: liveParticipants,
     startScreenShare,
     stopScreenShare,
-  } = useLiveKitRoom({
+  } = useWebRTCScreenShare({
     roomId: session?.room_id,
     isHost,
   });
@@ -183,10 +178,10 @@ export default function RoomPage() {
       <div className="flex-1 flex flex-col p-4 md:p-6 max-w-7xl mx-auto w-full gap-4">
         {/* Video Canvas Stage: Switches between Engine A (Screen Share) and Engine B (Direct Video) */}
         <div className="flex-1 bg-black rounded-2xl border border-cinema-850 flex flex-col items-center justify-center relative overflow-hidden shadow-2xl min-h-[460px]">
-          {isSharing || screenTrack ? (
-            <LiveKitScreenPlayer
-              screenTrack={screenTrack}
-              audioTrack={audioTrack}
+          {isSharing || isRemoteSharing || localStream || remoteStream ? (
+            <WebRTCScreenPlayer
+              localStream={localStream}
+              remoteStream={remoteStream}
               isSharing={isSharing}
               hasAudio={hasAudio}
               isHost={isHost}
@@ -224,26 +219,58 @@ export default function RoomPage() {
             </div>
 
             {/* Seat 2 */}
-            <div className="bg-cinema-950/40 border border-dashed border-cinema-800 rounded-lg px-4 py-2.5 flex items-center gap-3 min-w-[160px]">
-              <div className="w-7 h-7 rounded-full bg-cinema-900 border border-cinema-800 flex items-center justify-center text-xs text-gray-600">
-                2
+            {liveParticipants?.filter((p) => p.id !== session?.user_id)[0] ? (
+              <div className="bg-cinema-950 border border-cinema-700/60 rounded-lg px-4 py-2.5 flex items-center gap-3 min-w-[160px]">
+                <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-xs text-white shadow">
+                  {liveParticipants.filter((p) => p.id !== session?.user_id)[0].displayName?.[0]?.toUpperCase() || 'V'}
+                </div>
+                <div className="overflow-hidden">
+                  <p className="text-xs font-semibold text-white truncate">
+                    {liveParticipants.filter((p) => p.id !== session?.user_id)[0].displayName}
+                  </p>
+                  <p className="text-[10px] text-emerald-400 uppercase tracking-wider">
+                    {liveParticipants.filter((p) => p.id !== session?.user_id)[0].role}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-medium text-gray-500">Empty Seat</p>
-                <p className="text-[10px] text-gray-600">Invite Viewer</p>
+            ) : (
+              <div className="bg-cinema-950/40 border border-dashed border-cinema-800 rounded-lg px-4 py-2.5 flex items-center gap-3 min-w-[160px]">
+                <div className="w-7 h-7 rounded-full bg-cinema-900 border border-cinema-800 flex items-center justify-center text-xs text-gray-600">
+                  2
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-500">Empty Seat</p>
+                  <p className="text-[10px] text-gray-600">Invite Viewer</p>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Seat 3 */}
-            <div className="bg-cinema-950/40 border border-dashed border-cinema-800 rounded-lg px-4 py-2.5 flex items-center gap-3 min-w-[160px]">
-              <div className="w-7 h-7 rounded-full bg-cinema-900 border border-cinema-800 flex items-center justify-center text-xs text-gray-600">
-                3
+            {liveParticipants?.filter((p) => p.id !== session?.user_id)[1] ? (
+              <div className="bg-cinema-950 border border-cinema-700/60 rounded-lg px-4 py-2.5 flex items-center gap-3 min-w-[160px]">
+                <div className="w-7 h-7 rounded-full bg-teal-600 flex items-center justify-center font-bold text-xs text-white shadow">
+                  {liveParticipants.filter((p) => p.id !== session?.user_id)[1].displayName?.[0]?.toUpperCase() || 'V'}
+                </div>
+                <div className="overflow-hidden">
+                  <p className="text-xs font-semibold text-white truncate">
+                    {liveParticipants.filter((p) => p.id !== session?.user_id)[1].displayName}
+                  </p>
+                  <p className="text-[10px] text-teal-400 uppercase tracking-wider">
+                    {liveParticipants.filter((p) => p.id !== session?.user_id)[1].role}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-medium text-gray-500">Empty Seat</p>
-                <p className="text-[10px] text-gray-600">Invite Viewer</p>
+            ) : (
+              <div className="bg-cinema-950/40 border border-dashed border-cinema-800 rounded-lg px-4 py-2.5 flex items-center gap-3 min-w-[160px]">
+                <div className="w-7 h-7 rounded-full bg-cinema-900 border border-cinema-800 flex items-center justify-center text-xs text-gray-600">
+                  3
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-500">Empty Seat</p>
+                  <p className="text-[10px] text-gray-600">Invite Viewer</p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

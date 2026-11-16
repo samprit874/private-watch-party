@@ -88,6 +88,33 @@ export function initSocketServer(httpServer: HttpServer): Server {
       timestamp: Date.now(),
     });
 
+    // Send full current room roster to connecting socket
+    try {
+      const roomSockets = await io.in(roomChannel).fetchSockets();
+      const activeParticipants = roomSockets.map((s) => ({
+        id: (s as any).data.userId,
+        displayName: (s as any).data.displayName,
+        role: (s as any).data.role,
+        socketId: s.id,
+        isConnected: true,
+      }));
+      socket.emit('ROOM_PARTICIPANTS', activeParticipants);
+
+      // If screen share is already active in this room, notify joining socket
+      const activeShare = screenShareStates.get(roomId);
+      if (activeShare && activeShare.active) {
+        const hostSocket = roomSockets.find((s) => (s as any).data.userId === activeShare.hostId);
+        socket.emit('SCREEN_SHARE_STARTED', {
+          hostId: activeShare.hostId,
+          hostSocketId: hostSocket?.id || socket.id,
+          hasAudio: activeShare.hasAudio,
+          timestamp: Date.now(),
+        });
+      }
+    } catch (err) {
+      console.warn('[Socket] Error fetching room roster:', err);
+    }
+
     // Send initial authoritative playback state to connecting socket
     const currentState = await PlaybackService.getPlaybackState(roomId);
     socket.emit('SYNC_STATE', currentState);
@@ -203,6 +230,7 @@ export function initSocketServer(httpServer: HttpServer): Server {
 
       io.to(roomChannel).emit('SCREEN_SHARE_STARTED', {
         hostId: userId,
+        hostSocketId: socket.id,
         displayName,
         hasAudio: data.hasAudio,
         timestamp: Date.now(),
@@ -226,6 +254,36 @@ export function initSocketServer(httpServer: HttpServer): Server {
       if (current && current.hostId === userId) {
         current.hasAudio = data.hasAudio;
         io.to(roomChannel).emit('SCREEN_SHARE_AUDIO_CHANGED', { hasAudio: data.hasAudio });
+      }
+    });
+
+    // 11. Media Change (Broadcast new video URL / uploaded video to room)
+    socket.on('MEDIA_CHANGE', (data: { url: string; title?: string }) => {
+      if (socket.data.role !== 'host' && socket.data.role !== 'co-host') {
+        return socket.emit('ERROR', { code: 'FORBIDDEN', message: 'Viewer cannot change media' });
+      }
+      io.to(roomChannel).emit('MEDIA_CHANGED', {
+        url: data.url,
+        title: data.title || 'Video Stream',
+        changedBy: displayName,
+        timestamp: Date.now(),
+      });
+    });
+
+    // 12. WebRTC P2P Screen Share Signalling (SDP Offer/Answer & ICE Candidates)
+    socket.on('WEBRTC_SIGNAL', (data: { targetSocketId?: string; signal: any }) => {
+      if (data.targetSocketId) {
+        io.to(data.targetSocketId).emit('WEBRTC_SIGNAL', {
+          senderSocketId: socket.id,
+          senderUserId: userId,
+          signal: data.signal,
+        });
+      } else {
+        socket.to(roomChannel).emit('WEBRTC_SIGNAL', {
+          senderSocketId: socket.id,
+          senderUserId: userId,
+          signal: data.signal,
+        });
       }
     });
 
@@ -255,6 +313,7 @@ export function initSocketServer(httpServer: HttpServer): Server {
 
       io.to(roomChannel).emit('PARTICIPANT_LEFT', {
         userId,
+        socketId: socket.id,
         displayName,
         timestamp: Date.now(),
       });

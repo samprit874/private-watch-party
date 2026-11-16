@@ -15,9 +15,21 @@ interface UseSocketSyncOptions {
   roomId?: string;
   isHost: boolean;
   videoRef: React.RefObject<HTMLVideoElement>;
+  onMediaChange?: (url: string, title?: string) => void;
+  onParticipantsUpdate?: (participants: Array<{ id: string; displayName: string; role: string; socketId: string }>) => void;
+  onScreenShareStart?: (data: { hostId: string; hostSocketId: string; hasAudio: boolean }) => void;
+  onScreenShareStop?: () => void;
 }
 
-export function useSocketSync({ roomId, isHost, videoRef }: UseSocketSyncOptions) {
+export function useSocketSync({
+  roomId,
+  isHost,
+  videoRef,
+  onMediaChange,
+  onParticipantsUpdate,
+  onScreenShareStart,
+  onScreenShareStop,
+}: UseSocketSyncOptions) {
   const socketRef = useRef<Socket | null>(null);
   const clockOffsetRef = useRef<number>(0);
   const lastRevisionRef = useRef<number>(0);
@@ -60,6 +72,33 @@ export function useSocketSync({ roomId, isHost, videoRef }: UseSocketSyncOptions
       const now = Date.now();
       const { offset } = calculateNtpOffset(data.clientTime, data.serverTime, now);
       clockOffsetRef.current = offset;
+    });
+
+    // Handle Room Participants roster
+    socket.on('ROOM_PARTICIPANTS', (participants: any[]) => {
+      onParticipantsUpdate?.(participants);
+    });
+
+    socket.on('PARTICIPANT_JOINED', (_data: any) => {
+      // Re-fetch or update when participant joins
+    });
+
+    socket.on('PARTICIPANT_LEFT', (_data: any) => {
+      // Update when participant leaves
+    });
+
+    // Handle Screen Sharing State Announcements
+    socket.on('SCREEN_SHARE_STARTED', (data: any) => {
+      onScreenShareStart?.(data);
+    });
+
+    socket.on('SCREEN_SHARE_STOPPED', () => {
+      onScreenShareStop?.();
+    });
+
+    // Handle Room Media Change (Engine B & C)
+    socket.on('MEDIA_CHANGED', (data: { url: string; title?: string }) => {
+      onMediaChange?.(data.url, data.title);
     });
 
     // Handle initial state sync
@@ -206,7 +245,24 @@ export function useSocketSync({ roomId, isHost, videoRef }: UseSocketSyncOptions
     socketRef.current?.emit('MEDIA_RATE', { baseRate, position });
   }, []);
 
+  const sendMediaChange = useCallback((url: string, title?: string) => {
+    socketRef.current?.emit('MEDIA_CHANGE', { url, title });
+  }, []);
+
+  const sendScreenShareStart = useCallback((hasAudio: boolean) => {
+    socketRef.current?.emit('SCREEN_SHARE_START', { hasAudio });
+  }, []);
+
+  const sendScreenShareStop = useCallback(() => {
+    socketRef.current?.emit('SCREEN_SHARE_STOP');
+  }, []);
+
+  const sendWebRTCSignal = useCallback((targetSocketId: string | undefined, signal: any) => {
+    socketRef.current?.emit('WEBRTC_SIGNAL', { targetSocketId, signal });
+  }, []);
+
   return {
+    socket: socketRef.current,
     isConnected,
     driftInfo,
     playbackState,
@@ -214,5 +270,9 @@ export function useSocketSync({ roomId, isHost, videoRef }: UseSocketSyncOptions
     sendPause,
     sendSeek,
     sendRate,
+    sendMediaChange,
+    sendScreenShareStart,
+    sendScreenShareStop,
+    sendWebRTCSignal,
   };
 }

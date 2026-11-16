@@ -32,9 +32,17 @@ export class StorageService {
     const storageKey = `uploads/${roomId}/${uploadId}/${sanitized}`;
 
     // 100% Free local server direct upload fallback when R2 credentials are not provided
-    if (!process.env.R2_ACCESS_KEY_ID || process.env.R2_ACCESS_KEY_ID === 'mock-access-key') {
+    const backendUrl = process.env.PUBLIC_SERVER_URL || 'https://watchparty-server-6a3v.onrender.com';
+    const hasValidR2 = process.env.R2_ACCESS_KEY_ID &&
+      process.env.R2_ACCESS_KEY_ID !== 'mock-access-key' &&
+      process.env.R2_SECRET_ACCESS_KEY &&
+      process.env.R2_SECRET_ACCESS_KEY !== 'mock-secret-key' &&
+      process.env.R2_ACCOUNT_ID &&
+      process.env.R2_ACCOUNT_ID !== 'mock-account';
+
+    if (!hasValidR2) {
       return {
-        uploadUrl: `/api/upload/direct/${uploadId}?filename=${encodeURIComponent(sanitized)}`,
+        uploadUrl: `${backendUrl}/api/upload/direct/${uploadId}?filename=${encodeURIComponent(sanitized)}`,
         storageKey,
         expiresInSeconds: 900,
       };

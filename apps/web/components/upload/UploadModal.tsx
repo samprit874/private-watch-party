@@ -2,13 +2,13 @@
 
 import React, { useState, useRef } from 'react';
 import { UploadCloud, X, CheckCircle, AlertCircle, Loader2, Film } from 'lucide-react';
-import { getApiBaseUrl } from '../../lib/api';
+import { getApiBaseUrl, getAuthHeaders } from '../../lib/api';
 
 interface UploadModalProps {
   roomId: string;
   isOpen: boolean;
   onClose: () => void;
-  onUploadComplete: (uploadId: string) => void;
+  onUploadComplete: (streamUrlOrId: string) => void;
 }
 
 export function UploadModal({ roomId, isOpen, onClose, onUploadComplete }: UploadModalProps) {
@@ -42,11 +42,12 @@ export function UploadModal({ roomId, isOpen, onClose, onUploadComplete }: Uploa
 
     try {
       const serverUrl = getApiBaseUrl();
+      const headers = getAuthHeaders();
 
       // 1. Initiate upload
       const initRes = await fetch(`${serverUrl}/api/upload/init`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         credentials: 'include',
         body: JSON.stringify({
           roomId,
@@ -64,10 +65,11 @@ export function UploadModal({ roomId, isOpen, onClose, onUploadComplete }: Uploa
       const { uploadId, uploadUrl } = await initRes.json();
       setStatusText('Uploading to storage...');
 
-      // 2. Direct S3/R2 binary PUT with XMLHttpRequest for progress tracking
+      // 2. Direct S3/R2/Server binary PUT with XMLHttpRequest for progress tracking
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open('PUT', uploadUrl, true);
+        xhr.withCredentials = true;
         xhr.setRequestHeader('Content-Type', selectedFile.type || 'video/mp4');
 
         xhr.upload.onprogress = (evt) => {
@@ -90,10 +92,10 @@ export function UploadModal({ roomId, isOpen, onClose, onUploadComplete }: Uploa
       });
 
       // 3. Finalize upload
-      setStatusText('Queueing for FFmpeg transcoding...');
+      setStatusText('Finalizing video processing...');
       const finalizeRes = await fetch(`${serverUrl}/api/upload/finalize`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         credentials: 'include',
         body: JSON.stringify({ uploadId }),
       });
@@ -102,11 +104,12 @@ export function UploadModal({ roomId, isOpen, onClose, onUploadComplete }: Uploa
         throw new Error('Failed to finalize upload');
       }
 
-      setStatusText('Upload complete! Video is queued for adaptive HLS processing.');
+      const finalizeData = await finalizeRes.json().catch(() => ({}));
+      setStatusText('Upload complete! Video ready to play.');
       setTimeout(() => {
-        onUploadComplete(uploadId);
+        onUploadComplete(finalizeData.streamUrl || uploadId);
         onClose();
-      }, 1500);
+      }, 1000);
     } catch (err: any) {
       setError(err.message || 'Upload failed');
     } finally {

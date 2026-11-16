@@ -3,6 +3,7 @@ import { z } from 'zod';
 import fs from 'fs/promises';
 import { createWriteStream } from 'fs';
 import path from 'path';
+import os from 'os';
 import { pool } from '../db/pool.js';
 import { StorageService } from '../services/storage.service.js';
 import { RoomService } from '../services/room.service.js';
@@ -98,9 +99,9 @@ export class UploadController {
 
       const updateRes = await pool.query(
         `UPDATE uploads
-         SET status = 'pending', progress_percentage = 0
+         SET status = 'completed', progress_percentage = 100
          WHERE id = $1 AND user_id = $2
-         RETURNING id, status`,
+         RETURNING id, room_id, original_filename, storage_key`,
         [uploadId, session.user_id]
       );
 
@@ -108,9 +109,15 @@ export class UploadController {
         return res.status(404).json({ error: 'UPLOAD_NOT_FOUND' });
       }
 
+      const upload = updateRes.rows[0];
+      const sanitized = upload.original_filename.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const backendUrl = process.env.PUBLIC_SERVER_URL || 'https://watchparty-server-6a3v.onrender.com';
+      const streamUrl = `${backendUrl}/api/uploads/${uploadId}/${sanitized}`;
+
       return res.json({
-        status: 'queued_for_processing',
+        status: 'ready',
         uploadId,
+        streamUrl,
       });
     } catch (err: any) {
       if (err instanceof z.ZodError) {
@@ -125,7 +132,7 @@ export class UploadController {
     try {
       const { uploadId } = req.params;
       const filename = (req.query.filename as string) || 'video.mp4';
-      const uploadDir = path.join('/tmp', 'watchparty', 'uploads', uploadId);
+      const uploadDir = path.join(os.tmpdir(), 'watchparty', 'uploads', uploadId);
       await fs.mkdir(uploadDir, { recursive: true });
       const filePath = path.join(uploadDir, filename);
 
