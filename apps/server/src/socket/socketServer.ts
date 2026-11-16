@@ -66,6 +66,10 @@ export function initSocketServer(httpServer: HttpServer): Server {
     }
   });
 
+  // Track active screen shares and host disconnect grace timers
+  const screenShareStates = new Map<string, { active: boolean; hostId: string; hasAudio: boolean }>();
+  const disconnectTimers = new Map<string, NodeJS.Timeout>();
+
   io.on('connection', async (socketRaw) => {
     const socket = socketRaw as AuthenticatedSocket;
     const { roomId, userId, displayName, role } = socket.data;
@@ -177,9 +181,78 @@ export function initSocketServer(httpServer: HttpServer): Server {
       });
     });
 
+    // Check if host reconnected within grace period
+    const existingTimer = disconnectTimers.get(roomId);
+    if (existingTimer && socket.data.role === 'host') {
+      clearTimeout(existingTimer);
+      disconnectTimers.delete(roomId);
+      io.to(roomChannel).emit('SCREEN_SHARE_RESUMED', { timestamp: Date.now() });
+    }
+
+    // 8. Screen Sharing: START
+    socket.on('SCREEN_SHARE_START', (data: { hasAudio: boolean }) => {
+      if (socket.data.role !== 'host' && socket.data.role !== 'co-host') {
+        return socket.emit('ERROR', { code: 'FORBIDDEN', message: 'Only host can start screen sharing' });
+      }
+
+      screenShareStates.set(roomId, {
+        active: true,
+        hostId: userId,
+        hasAudio: data.hasAudio,
+      });
+
+      io.to(roomChannel).emit('SCREEN_SHARE_STARTED', {
+        hostId: userId,
+        displayName,
+        hasAudio: data.hasAudio,
+        timestamp: Date.now(),
+      });
+    });
+
+    // 9. Screen Sharing: STOP
+    socket.on('SCREEN_SHARE_STOP', () => {
+      if (socket.data.role !== 'host' && socket.data.role !== 'co-host') return;
+
+      screenShareStates.delete(roomId);
+      io.to(roomChannel).emit('SCREEN_SHARE_STOPPED', {
+        reason: 'USER_STOPPED',
+        timestamp: Date.now(),
+      });
+    });
+
+    // 10. Screen Sharing: Audio Status Changed
+    socket.on('SCREEN_SHARE_AUDIO_STATUS', (data: { hasAudio: boolean }) => {
+      const current = screenShareStates.get(roomId);
+      if (current && current.hostId === userId) {
+        current.hasAudio = data.hasAudio;
+        io.to(roomChannel).emit('SCREEN_SHARE_AUDIO_CHANGED', { hasAudio: data.hasAudio });
+      }
+    });
+
     // Disconnect
     socket.on('disconnect', () => {
       console.log(`[Socket] User ${displayName} (${userId}) disconnected from ${roomChannel}`);
+      
+      const activeShare = screenShareStates.get(roomId);
+      if (activeShare && activeShare.hostId === userId) {
+        // Host disconnected while screen sharing - trigger 15s grace period
+        io.to(roomChannel).emit('SCREEN_SHARE_INTERRUPTED', {
+          message: 'Host disconnected. Waiting 15s for reconnection...',
+          gracePeriodMs: 15000,
+        });
+
+        const timer = setTimeout(() => {
+          screenShareStates.delete(roomId);
+          disconnectTimers.delete(roomId);
+          io.to(roomChannel).emit('SCREEN_SHARE_STOPPED', {
+            reason: 'HOST_TIMEOUT',
+            timestamp: Date.now(),
+          });
+        }, 15000);
+
+        disconnectTimers.set(roomId, timer);
+      }
+
       io.to(roomChannel).emit('PARTICIPANT_LEFT', {
         userId,
         displayName,

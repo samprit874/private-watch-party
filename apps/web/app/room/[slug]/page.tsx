@@ -13,9 +13,13 @@ import {
   Tv, 
   Radio, 
   AlertCircle,
-  Loader2 
+  Loader2,
+  Monitor,
+  StopCircle 
 } from 'lucide-react';
 import { VideoPlayer } from '../../../components/player/VideoPlayer';
+import { LiveKitScreenPlayer } from '../../../components/player/LiveKitScreenPlayer';
+import { useLiveKitRoom } from '../../../hooks/useLiveKitRoom';
 
 interface ParticipantInfo {
   id: string;
@@ -35,6 +39,20 @@ export default function RoomPage() {
   const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [participants, setParticipants] = useState<ParticipantInfo[]>([]);
+
+  const isHost = session?.role === 'host' || session?.role === 'co-host';
+
+  const {
+    isSharing,
+    hasAudio,
+    screenTrack,
+    audioTrack,
+    startScreenShare,
+    stopScreenShare,
+  } = useLiveKitRoom({
+    roomId: session?.room_id,
+    isHost,
+  });
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -118,6 +136,29 @@ export default function RoomPage() {
 
         {/* Action Controls */}
         <div className="flex items-center gap-3">
+          {isHost && (
+            <button
+              onClick={isSharing ? stopScreenShare : startScreenShare}
+              className={`flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shadow-sm ${
+                isSharing 
+                  ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/20' 
+                  : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20'
+              }`}
+            >
+              {isSharing ? (
+                <>
+                  <StopCircle className="w-3.5 h-3.5" />
+                  <span>Stop Screen Share</span>
+                </>
+              ) : (
+                <>
+                  <Monitor className="w-3.5 h-3.5" />
+                  <span>Share Screen</span>
+                </>
+              )}
+            </button>
+          )}
+
           <button
             onClick={copyInviteLink}
             className="flex items-center gap-2 bg-cinema-850 hover:bg-cinema-800 border border-cinema-700/60 text-xs font-semibold px-3 py-1.5 rounded-lg text-gray-200 transition-colors shadow-sm"
@@ -147,12 +188,23 @@ export default function RoomPage() {
 
       {/* Main Cinema Theater */}
       <div className="flex-1 flex flex-col p-4 md:p-6 max-w-7xl mx-auto w-full gap-4">
-        {/* Video Canvas Stage */}
+        {/* Video Canvas Stage: Switches between Engine A (Screen Share) and Engine B (Direct Video) */}
         <div className="flex-1 bg-black rounded-2xl border border-cinema-850 flex flex-col items-center justify-center relative overflow-hidden shadow-2xl min-h-[460px]">
-          <VideoPlayer 
-            roomId={session?.room_id} 
-            isHost={session?.role === 'host'} 
-          />
+          {isSharing || screenTrack ? (
+            <LiveKitScreenPlayer
+              screenTrack={screenTrack}
+              audioTrack={audioTrack}
+              isSharing={isSharing}
+              hasAudio={hasAudio}
+              isHost={isHost}
+              onStopSharing={stopScreenShare}
+            />
+          ) : (
+            <VideoPlayer 
+              roomId={session?.room_id} 
+              isHost={isHost} 
+            />
+          )}
         </div>
 
         {/* 3-Seat Participant Bar */}
