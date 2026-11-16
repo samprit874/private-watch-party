@@ -19,7 +19,15 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-// Health check
+// Root & Health check
+app.get('/', (_req, res) => {
+  res.json({
+    service: 'Private Watch Party API & Sync Engine',
+    status: 'online',
+    health: '/health',
+  });
+});
+
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() });
 });
