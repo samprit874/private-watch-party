@@ -22,9 +22,10 @@ import { UploadModal } from '../upload/UploadModal';
 interface VideoPlayerProps {
   roomId?: string;
   isHost: boolean;
+  isTvReceiver?: boolean;
 }
 
-export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
+export function VideoPlayer({ roomId, isHost, isTvReceiver = false }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -42,6 +43,29 @@ export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
   const [inputUrl, setInputUrl] = useState('');
   const [isValidatingUrl, setIsValidatingUrl] = useState(false);
   const [urlError, setUrlError] = useState<string | null>(null);
+  const [showControls, setShowControls] = useState(true);
+  const [touchFeedback, setTouchFeedback] = useState<string | null>(null);
+  const lastTapRef = useRef<{ time: number; x: number }>({ time: 0, x: 0 });
+
+  // 10-Foot TV Inactivity Auto-Dimmer
+  useEffect(() => {
+    if (!isTvReceiver) return;
+    let timer = setTimeout(() => setShowControls(false), 3500);
+
+    const resetTimer = () => {
+      setShowControls(true);
+      clearTimeout(timer);
+      timer = setTimeout(() => setShowControls(false), 3500);
+    };
+
+    window.addEventListener('keydown', resetTimer);
+    window.addEventListener('mousemove', resetTimer);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('keydown', resetTimer);
+      window.removeEventListener('mousemove', resetTimer);
+    };
+  }, [isTvReceiver]);
 
   const {
     isConnected,
@@ -212,9 +236,37 @@ export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
+  const handleVideoTouch = (e: React.TouchEvent<HTMLDivElement>) => {
+    const now = Date.now();
+    const touch = e.changedTouches[0];
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const x = touch.clientX - rect.left;
+    const isDoubleTap = now - lastTapRef.current.time < 300;
+
+    if (isDoubleTap && isHost) {
+      if (x < rect.width / 3) {
+        const newTime = Math.max(0, currentTime - 10);
+        sendSeek(newTime);
+        setTouchFeedback('-10s');
+        setTimeout(() => setTouchFeedback(null), 800);
+      } else if (x > (rect.width * 2) / 3) {
+        const newTime = Math.min(duration, currentTime + 10);
+        sendSeek(newTime);
+        setTouchFeedback('+10s');
+        setTimeout(() => setTouchFeedback(null), 800);
+      }
+    } else {
+      setShowControls((prev) => !prev);
+    }
+    lastTapRef.current = { time: now, x };
+  };
+
   return (
     <div 
       ref={containerRef}
+      onTouchEnd={handleVideoTouch}
       className="relative w-full h-full bg-black rounded-2xl overflow-hidden flex flex-col justify-center items-center group select-none"
     >
       <video
@@ -228,6 +280,15 @@ export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
         onClick={togglePlay}
       />
 
+      {/* Mobile Double Tap Feedback Badge */}
+      {touchFeedback && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+          <span className="text-3xl font-extrabold bg-black/80 px-6 py-3 rounded-2xl border border-white/20 animate-pulse text-white shadow-2xl">
+            {touchFeedback}
+          </span>
+        </div>
+      )}
+
       {/* Top Left: Media Engine Badge & Direct URL Button */}
       <div className="absolute top-4 left-4 z-20 flex items-center gap-2 opacity-90 transition-opacity">
         <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-xs text-gray-200">
@@ -235,7 +296,7 @@ export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
           <span>Engine B: Direct Video</span>
         </div>
 
-        {isHost && (
+        {isHost && !isTvReceiver && (
           <>
             <button
               onClick={() => setShowUrlModal(true)}
@@ -266,7 +327,9 @@ export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
       </div>
 
       {/* Bottom Controls Overlay */}
-      <div className="absolute bottom-0 inset-x-0 z-20 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-2">
+      <div className={`absolute bottom-0 inset-x-0 z-20 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 transition-opacity flex flex-col gap-2 ${
+        showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
+      } group-hover:opacity-100`}>
         {/* Scrubber Bar */}
         <div className="w-full flex items-center gap-3">
           <span className="text-[11px] font-mono text-gray-300 w-10 text-right">
@@ -291,15 +354,22 @@ export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
+              id="tv-btn-play"
+              data-tv-nav="true"
               onClick={togglePlay}
-              className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+              className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-amber-500 flex items-center justify-center text-white transition-colors"
             >
               {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-white ml-0.5" />}
             </button>
 
             {/* Volume Control */}
             <div className="flex items-center gap-2">
-              <button onClick={toggleMute} className="text-gray-300 hover:text-white">
+              <button 
+                id="tv-btn-volume"
+                data-tv-nav="true"
+                onClick={toggleMute} 
+                className="text-gray-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 rounded p-1"
+              >
                 {isMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4" />}
               </button>
               <input
@@ -334,7 +404,12 @@ export function VideoPlayer({ roomId, isHost }: VideoPlayerProps) {
             </div>
 
             {/* Fullscreen */}
-            <button onClick={toggleFullscreen} className="text-gray-300 hover:text-white p-1">
+            <button 
+              id="tv-btn-fullscreen"
+              data-tv-nav="true"
+              onClick={toggleFullscreen} 
+              className="text-gray-300 hover:text-white p-1 focus:outline-none focus:ring-2 focus:ring-amber-500 rounded"
+            >
               {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
             </button>
           </div>

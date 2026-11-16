@@ -121,6 +121,12 @@ export function useLiveKitRoom({
 
     try {
       setError(null);
+      // Mobile Browser Screen Capture Check
+      const isMobile = typeof window !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      if (isMobile) {
+        throw new Error('Screen sharing broadcast is not supported on mobile browsers. You can view screen shares on mobile, but broadcasting requires a desktop browser.');
+      }
+
       await room.localParticipant.setScreenShareEnabled(true, {
         audio: true,
         resolution: {
