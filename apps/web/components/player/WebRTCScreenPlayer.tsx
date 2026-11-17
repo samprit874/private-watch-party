@@ -85,6 +85,10 @@ export function WebRTCScreenPlayer({
         playsInline
         muted={isHost} // Always mute locally for host to prevent feedback echo loops
         className="w-full h-full object-contain"
+        style={{
+          transform: 'translateZ(0)',
+          WebkitBackfaceVisibility: 'hidden',
+        }}
       />
 
       {/* Top Left Badge: Engine A Indicator */}

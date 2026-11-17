@@ -282,6 +282,10 @@ export function VideoPlayer({
         onPause={() => setIsPlaying(false)}
         playsInline
         className="w-full h-full object-contain cursor-pointer"
+        style={{
+          transform: 'translateZ(0)',
+          WebkitBackfaceVisibility: 'hidden',
+        }}
         onClick={togglePlay}
       />
 

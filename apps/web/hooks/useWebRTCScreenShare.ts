@@ -230,21 +230,24 @@ export function useWebRTCScreenShare({ roomId, slug, isHost }: UseWebRTCScreenSh
             };
           }
 
-          await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: signal.sdp }));
+          const boostedOfferSdp = boostSdpBitrate(signal.sdp || '');
+          await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: boostedOfferSdp }));
           const answer = await pc.createAnswer();
-          const boostedSdp = boostSdpBitrate(answer.sdp || '');
-          const boostedAnswer = new RTCSessionDescription({ type: 'answer', sdp: boostedSdp });
+          const boostedAnswerSdp = boostSdpBitrate(answer.sdp || '');
+          const boostedAnswer = new RTCSessionDescription({ type: 'answer', sdp: boostedAnswerSdp });
           await pc.setLocalDescription(boostedAnswer);
 
           socket.emit('WEBRTC_SIGNAL', {
             targetSocketId: senderSocketId,
-            signal: { type: 'answer', sdp: pc.localDescription?.sdp || answer.sdp },
+            signal: { type: 'answer', sdp: boostedAnswerSdp },
           });
         } else if (signal.type === 'answer') {
           // Host handles Answer from viewer
           const pc = peerConnectionsRef.current.get(senderSocketId);
           if (pc && pc.signalingState !== 'stable') {
-            await pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: signal.sdp }));
+            const boostedAnswerSdp = boostSdpBitrate(signal.sdp || '');
+            await pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: boostedAnswerSdp }));
+            applyHighBitrateToSender(pc);
           }
         } else if (signal.type === 'candidate') {
           // Both handle ICE candidate
@@ -265,12 +268,12 @@ export function useWebRTCScreenShare({ roomId, slug, isHost }: UseWebRTCScreenSh
     };
   }, [roomId, slug, isHost, refreshParticipants]);
 
-// Helper to boost WebRTC SDP bandwidth to 8 Mbps for pristine 1080p 60fps streaming
-const boostSdpBitrate = (sdp: string, bitrateKbps: number = 8000): string => {
+// Helper to boost WebRTC SDP bandwidth to 12 Mbps for crystal 1080p/4K 60fps streaming on PC & mobile
+const boostSdpBitrate = (sdp: string, bitrateKbps: number = 12000): string => {
   const lines = sdp.split('\r\n');
   let inVideo = false;
   const result: string[] = [];
-  for (const line of lines) {
+  for (let line of lines) {
     if (line.startsWith('m=video')) {
       inVideo = true;
       result.push(line);
@@ -283,9 +286,39 @@ const boostSdpBitrate = (sdp: string, bitrateKbps: number = 8000): string => {
     if (inVideo && (line.startsWith('b=AS:') || line.startsWith('b=TIAS:'))) {
       continue;
     }
+    // Boost Google WebRTC minimum & maximum bitrate parameters on video fmtp lines
+    if (inVideo && line.startsWith('a=fmtp:')) {
+      if (!line.includes('x-google-min-bitrate')) {
+        line = `${line};x-google-min-bitrate=5000;x-google-max-bitrate=15000;x-google-start-bitrate=10000`;
+      }
+    }
     result.push(line);
   }
   return result.join('\r\n');
+};
+
+// Helper: Apply 12 Mbps maximum encoding parameters to video senders
+const applyHighBitrateToSender = async (pc: RTCPeerConnection) => {
+  try {
+    const senders = pc.getSenders();
+    for (const sender of senders) {
+      if (sender.track && sender.track.kind === 'video') {
+        const params = sender.getParameters();
+        if (!params.encodings || params.encodings.length === 0) {
+          params.encodings = [{}];
+        }
+        for (const enc of params.encodings) {
+          enc.maxBitrate = 12000000; // 12 Mbps peak for crystal clarity on PC monitors
+          enc.maxFramerate = 60;
+          enc.scaleResolutionDownBy = 1.0;
+          if ('networkPriority' in enc) {
+            (enc as any).networkPriority = 'high';
+          }
+        }
+        await sender.setParameters(params);
+      }
+    }
+  } catch {}
 };
 
   // Helper: Host initiates WebRTC Offer to a peer
@@ -295,20 +328,14 @@ const boostSdpBitrate = (sdp: string, bitrateKbps: number = 8000): string => {
       peerConnectionsRef.current.set(targetSocketId, pc);
 
       stream.getTracks().forEach((track) => {
-        const sender = pc.addTrack(track, stream);
-        if (track.kind === 'video') {
-          try {
-            const params = sender.getParameters();
-            if (!params.encodings || params.encodings.length === 0) {
-              params.encodings = [{}];
-            }
-            params.encodings[0].maxBitrate = 8000000; // 8 Mbps high-bitrate encoding
-            params.encodings[0].maxFramerate = 60;
-            params.encodings[0].scaleResolutionDownBy = 1.0;
-            sender.setParameters(params).catch(() => {});
-          } catch {}
-        }
+        pc.addTrack(track, stream);
       });
+
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'connected') {
+          applyHighBitrateToSender(pc);
+        }
+      };
 
       pc.onicecandidate = (event) => {
         if (event.candidate) {
@@ -323,10 +350,11 @@ const boostSdpBitrate = (sdp: string, bitrateKbps: number = 8000): string => {
       const boostedSdp = boostSdpBitrate(offer.sdp || '');
       const boostedOffer = new RTCSessionDescription({ type: 'offer', sdp: boostedSdp });
       await pc.setLocalDescription(boostedOffer);
+      applyHighBitrateToSender(pc);
 
       socket.emit('WEBRTC_SIGNAL', {
         targetSocketId,
-        signal: { type: 'offer', sdp: pc.localDescription?.sdp || offer.sdp },
+        signal: { type: 'offer', sdp: boostedSdp },
       });
     } catch (err) {
       console.error('[WebRTC] Error creating offer to peer:', err);
@@ -343,12 +371,11 @@ const boostSdpBitrate = (sdp: string, bitrateKbps: number = 8000): string => {
         throw new Error('Screen sharing is not supported in this browser environment');
       }
 
-      // Enforce 1080p Full HD at up to 60 FPS
+      // Enforce up to 4K resolution at 60 FPS without forced downscaling
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: {
-          displaySurface: 'monitor',
-          width: { ideal: 1920, max: 1920 },
-          height: { ideal: 1080, max: 1080 },
+          width: { ideal: 1920, max: 3840 },
+          height: { ideal: 1080, max: 2160 },
           frameRate: { ideal: 60, max: 60 },
         },
         audio: {
@@ -371,6 +398,13 @@ const boostSdpBitrate = (sdp: string, bitrateKbps: number = 8000): string => {
         if ('contentHint' in videoTrack) {
           (videoTrack as any).contentHint = 'motion';
         }
+        try {
+          await videoTrack.applyConstraints({
+            width: { ideal: 1920, max: 3840 },
+            height: { ideal: 1080, max: 2160 },
+            frameRate: { ideal: 60, max: 60 },
+          });
+        } catch {}
         videoTrack.onended = () => {
           stopScreenShare();
         };

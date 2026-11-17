@@ -301,7 +301,7 @@ export default function RoomPage() {
       </header>
 
       {/* Main Theater Layout: [video] under [message area] */}
-      <main className="flex-1 max-w-4xl w-full mx-auto p-3 sm:p-4 flex flex-col gap-3">
+      <main className="flex-1 max-w-5xl xl:max-w-6xl w-full mx-auto p-3 sm:p-4 flex flex-col gap-3">
         {/* [video] Container */}
         <div className="w-full aspect-video rounded-2xl bg-black border border-zinc-800/80 overflow-hidden relative shadow-2xl flex flex-col justify-center items-center">
           {isSharing || isRemoteSharing || localStream || remoteStream ? (
