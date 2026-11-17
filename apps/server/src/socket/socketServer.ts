@@ -68,7 +68,7 @@ export function initSocketServer(httpServer: HttpServer): Server {
   });
 
   // Track active screen shares and host disconnect grace timers
-  const screenShareStates = new Map<string, { active: boolean; hostId: string; hasAudio: boolean }>();
+  const screenShareStates = new Map<string, { active: boolean; hostId: string; hostSocketId?: string; hasAudio: boolean }>();
   const disconnectTimers = new Map<string, NodeJS.Timeout>();
 
   io.on('connection', async (socketRaw) => {
@@ -117,12 +117,15 @@ export function initSocketServer(httpServer: HttpServer): Server {
       const activeShare = screenShareStates.get(roomId);
       if (activeShare && activeShare.active) {
         const hostSocket = roomSockets.find((s) => (s as any).data.userId === activeShare.hostId);
-        socket.emit('SCREEN_SHARE_STARTED', {
-          hostId: activeShare.hostId,
-          hostSocketId: hostSocket?.id || socket.id,
-          hasAudio: activeShare.hasAudio,
-          timestamp: Date.now(),
-        });
+        const resolvedHostSocketId = activeShare.hostSocketId || hostSocket?.id;
+        if (resolvedHostSocketId) {
+          socket.emit('SCREEN_SHARE_STARTED', {
+            hostId: activeShare.hostId,
+            hostSocketId: resolvedHostSocketId,
+            hasAudio: activeShare.hasAudio,
+            timestamp: Date.now(),
+          });
+        }
       }
     } catch (err) {
       console.warn('[Socket] Error fetching room roster:', err);
@@ -265,6 +268,7 @@ export function initSocketServer(httpServer: HttpServer): Server {
       screenShareStates.set(roomId, {
         active: true,
         hostId: userId,
+        hostSocketId: socket.id,
         hasAudio: data.hasAudio,
       });
 
@@ -275,6 +279,18 @@ export function initSocketServer(httpServer: HttpServer): Server {
         hasAudio: data.hasAudio,
         timestamp: Date.now(),
       });
+    });
+
+    // 8.1 Viewer requests stream directly from host
+    socket.on('REQUEST_SCREEN_STREAM', (data: { hostSocketId?: string }) => {
+      const current = screenShareStates.get(roomId);
+      const targetHostSocket = data?.hostSocketId || current?.hostSocketId;
+      if (targetHostSocket) {
+        io.to(targetHostSocket).emit('VIEWER_REQUESTED_STREAM', {
+          viewerSocketId: socket.id,
+          viewerUserId: userId,
+        });
+      }
     });
 
     // 9. Screen Sharing: STOP

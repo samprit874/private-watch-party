@@ -29,9 +29,11 @@ interface UseWebRTCScreenShareOptions {
 
 const RTC_CONFIG: RTCConfiguration = {
   iceServers: [
-    { urls: 'stun:stun.cloudflare.com:3478' },
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun.cloudflare.com:3478' },
+    { urls: 'stun:global.stun.twilio.com:3478' },
   ],
   iceCandidatePoolSize: 4,
 };
@@ -40,6 +42,7 @@ export function useWebRTCScreenShare({ roomId, slug, isHost }: UseWebRTCScreenSh
   const socketRef = useRef<Socket | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const iceCandidateQueuesRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
 
   const [isConnected, setIsConnected] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
@@ -190,6 +193,15 @@ export function useWebRTCScreenShare({ roomId, slug, isHost }: UseWebRTCScreenSh
       if (!isHost) {
         setIsRemoteSharing(true);
         setHasAudio(data.hasAudio);
+        if (data.hostSocketId) {
+          socket.emit('REQUEST_SCREEN_STREAM', { hostSocketId: data.hostSocketId });
+        }
+      }
+    });
+
+    socket.on('VIEWER_REQUESTED_STREAM', (data: { viewerSocketId: string; viewerUserId: string }) => {
+      if (isHost && localStreamRef.current && data.viewerSocketId) {
+        initiateOfferToPeer(socket, data.viewerSocketId, localStreamRef.current);
       }
     });
 
@@ -218,6 +230,15 @@ export function useWebRTCScreenShare({ roomId, slug, isHost }: UseWebRTCScreenSh
                 setRemoteStream(event.streams[0]);
                 setIsRemoteSharing(true);
               }
+              const track = event.track;
+              if (track) {
+                track.onunmute = () => {
+                  if (event.streams && event.streams[0]) {
+                    setRemoteStream(event.streams[0]);
+                    setIsRemoteSharing(true);
+                  }
+                };
+              }
             };
 
             pc.onicecandidate = (event) => {
@@ -232,6 +253,14 @@ export function useWebRTCScreenShare({ roomId, slug, isHost }: UseWebRTCScreenSh
 
           const boostedOfferSdp = boostSdpBitrate(signal.sdp || '');
           await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: boostedOfferSdp }));
+
+          // Flush any buffered early ICE candidates
+          const queued = iceCandidateQueuesRef.current.get(senderSocketId) || [];
+          for (const cand of queued) {
+            await pc.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {});
+          }
+          iceCandidateQueuesRef.current.delete(senderSocketId);
+
           const answer = await pc.createAnswer();
           const boostedAnswerSdp = boostSdpBitrate(answer.sdp || '');
           const boostedAnswer = new RTCSessionDescription({ type: 'answer', sdp: boostedAnswerSdp });
@@ -247,13 +276,25 @@ export function useWebRTCScreenShare({ roomId, slug, isHost }: UseWebRTCScreenSh
           if (pc && pc.signalingState !== 'stable') {
             const boostedAnswerSdp = boostSdpBitrate(signal.sdp || '');
             await pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: boostedAnswerSdp }));
+
+            // Flush any buffered early ICE candidates
+            const queued = iceCandidateQueuesRef.current.get(senderSocketId) || [];
+            for (const cand of queued) {
+              await pc.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {});
+            }
+            iceCandidateQueuesRef.current.delete(senderSocketId);
+
             applyHighBitrateToSender(pc);
           }
         } else if (signal.type === 'candidate') {
           // Both handle ICE candidate
           const pc = peerConnectionsRef.current.get(senderSocketId);
-          if (pc && pc.remoteDescription) {
-            await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+          if (pc && pc.remoteDescription && pc.remoteDescription.type) {
+            await pc.addIceCandidate(new RTCIceCandidate(signal.candidate)).catch(() => {});
+          } else {
+            const q = iceCandidateQueuesRef.current.get(senderSocketId) || [];
+            q.push(signal.candidate);
+            iceCandidateQueuesRef.current.set(senderSocketId, q);
           }
         }
       } catch (err: any) {

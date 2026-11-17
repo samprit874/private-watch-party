@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Monitor, Volume2, VolumeX, Maximize, Minimize, StopCircle } from 'lucide-react';
+import { Monitor, Volume2, VolumeX, Maximize, Minimize, StopCircle, Loader2 } from 'lucide-react';
 import { enterLandscapeFullscreen, exitLandscapeFullscreen, isFullscreenActive } from '../../lib/fullscreen';
 
 interface WebRTCScreenPlayerProps {
@@ -24,16 +24,22 @@ export function WebRTCScreenPlayer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [needsUnmute, setNeedsUnmute] = useState(false);
+
+  const activeStream = isHost ? localStream : (remoteStream || localStream);
 
   // Attach local (host) or remote (viewer) MediaStream to HTML5 video element
   useEffect(() => {
     const video = videoRef.current;
-    const activeStream = isHost ? localStream : (remoteStream || localStream);
 
     if (video && activeStream) {
       video.srcObject = activeStream;
+      video.muted = isHost;
       video.play().catch((err) => {
-        console.warn('[WebRTCScreenPlayer] Autoplay prevented, waiting for interaction:', err);
+        console.warn('[WebRTCScreenPlayer] Autoplay blocked by mobile browser, falling back to muted playback:', err);
+        video.muted = true;
+        setNeedsUnmute(true);
+        video.play().catch(() => {});
       });
     }
 
@@ -42,7 +48,7 @@ export function WebRTCScreenPlayer({
         video.srcObject = null;
       }
     };
-  }, [localStream, remoteStream, isHost]);
+  }, [activeStream, isHost]);
 
   // Listen for fullscreen and rotation changes
   useEffect(() => {
@@ -74,6 +80,15 @@ export function WebRTCScreenPlayer({
     }
   };
 
+  const handleUnmute = () => {
+    const video = videoRef.current;
+    if (video) {
+      video.muted = false;
+      setNeedsUnmute(false);
+      video.play().catch(() => {});
+    }
+  };
+
   return (
     <div
       ref={containerRef}
@@ -90,6 +105,25 @@ export function WebRTCScreenPlayer({
           WebkitBackfaceVisibility: 'hidden',
         }}
       />
+
+      {/* Connecting Spinner for Viewer when Stream has not arrived yet */}
+      {!activeStream && (
+        <div className="absolute inset-0 z-10 bg-black/90 flex flex-col items-center justify-center gap-2.5 text-zinc-400">
+          <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+          <p className="text-xs font-medium">Connecting to Host Screen Share...</p>
+        </div>
+      )}
+
+      {/* Floating Unmute Button for Mobile Browser Autoplay policies */}
+      {needsUnmute && !isHost && (
+        <button
+          onClick={handleUnmute}
+          className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 px-3.5 py-1.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs flex items-center gap-2 shadow-xl shadow-indigo-600/40 backdrop-blur-md active:scale-95 transition-all animate-bounce"
+        >
+          <Volume2 className="w-3.5 h-3.5" />
+          <span>Tap to Unmute Audio</span>
+        </button>
+      )}
 
       {/* Top Left Badge: Engine A Indicator */}
       <div className="absolute top-3 left-3 z-20 flex items-center gap-2">
